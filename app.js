@@ -1,408 +1,236 @@
 
 (() => {
-  "use strict";
-
+  const $ = id => document.getElementById(id);
   const config = window.VOLTLAB_CONFIG;
-  if (!config) {
-    console.error("VoltLab: config.js nebyl načten.");
-    return;
-  }
+  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[c]);
 
-  const $ = (id) => document.getElementById(id);
-  const storage = config.storage;
-
-  function readStorage(key, fallback) {
+  function load(key, fallback) {
     try {
-      const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : fallback;
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : structuredClone(fallback);
     } catch {
-      return fallback;
+      return structuredClone(fallback);
     }
   }
 
-  function writeStorage(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      notify("Uložení se nezdařilo. Zkontroluj nastavení prohlížeče.");
-      return false;
-    }
-  }
-
-  let articles = readStorage(storage.articles, window.VOLTLAB_DEFAULT_ARTICLES || []);
-  let projects = readStorage(storage.projects, window.VOLTLAB_DEFAULT_PROJECTS || []);
-
+  let articles = load(config.storage.articles, window.VOLTLAB_DEFAULT_ARTICLES);
+  let projects = load(config.storage.projects, window.VOLTLAB_DEFAULT_PROJECTS);
   let articleCategory = "all";
   let projectCategory = "all";
 
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    })[char]);
+  function saveArticles(data) {
+    articles = data;
+    localStorage.setItem(config.storage.articles, JSON.stringify(data));
+    renderArticles();
   }
-
-  function categoryName(id) {
-    const category = config.categories.find(item => item.id === id);
-    return category ? category.name : "Ostatní";
+  function saveProjects(data) {
+    projects = data;
+    localStorage.setItem(config.storage.projects, JSON.stringify(data));
+    renderProjects();
   }
 
   function notify(message) {
     const region = $("toast-region");
     if (!region) return;
-
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = message;
     region.appendChild(toast);
-
-    window.setTimeout(() => toast.remove(), 3200);
+    requestAnimationFrame(() => toast.classList.add("visible"));
+    setTimeout(() => {
+      toast.classList.remove("visible");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   }
 
   function renderCategories() {
-    const container = $("category-grid");
-    if (!container) return;
-
-    container.innerHTML = config.categories.map(category => `
-      <button class="category-card" type="button" data-category="${escapeHTML(category.id)}">
+    $("category-grid").innerHTML = config.categories.map(cat => `
+      <button class="category-card" data-category="${cat.id}">
+        <span class="category-icon">${cat.icon}</span>
+        <strong>${escapeHTML(cat.name)}</strong>
+        <span>${escapeHTML(cat.description)}</span>
         <span class="category-arrow">↗</span>
-        <span class="category-icon">${escapeHTML(category.icon)}</span>
-        <h3>${escapeHTML(category.name)}</h3>
-        <p>${escapeHTML(category.description)}</p>
-      </button>
-    `).join("");
+      </button>`).join("");
+  }
 
-    container.querySelectorAll("[data-category]").forEach(button => {
+  function renderFilters(type) {
+    const target = $(type + "-filters");
+    const current = type === "article" ? articleCategory : projectCategory;
+    target.innerHTML = `<button class="filter-button ${current === "all" ? "active" : ""}" data-filter="all">Vše</button>` +
+      config.categories.map(c => `<button class="filter-button ${current === c.id ? "active" : ""}" data-filter="${c.id}">${escapeHTML(c.name)}</button>`).join("");
+    target.querySelectorAll("[data-filter]").forEach(button => {
       button.addEventListener("click", () => {
-        const category = button.dataset.category;
-        articleCategory = category;
-        projectCategory = category;
-        renderFilters();
-        renderArticles();
-        renderProjects();
-        $("articles").scrollIntoView({ behavior: "smooth" });
+        if (type === "article") articleCategory = button.dataset.filter;
+        else projectCategory = button.dataset.filter;
+        renderFilters(type);
+        type === "article" ? renderArticles() : renderProjects();
       });
     });
   }
 
-  function renderFilters() {
-    const articleFilters = $("article-filters");
-    const projectFilters = $("project-filters");
-
-    if (articleFilters) {
-      articleFilters.innerHTML = `
-        <button class="filter-button ${articleCategory === "all" ? "active" : ""}" data-category="all">Vše</button>
-        ${config.categories.map(category => `
-          <button class="filter-button ${articleCategory === category.id ? "active" : ""}" data-category="${escapeHTML(category.id)}">${escapeHTML(category.name)}</button>
-        `).join("")}
-      `;
-      articleFilters.querySelectorAll("[data-category]").forEach(button => {
-        button.addEventListener("click", () => {
-          articleCategory = button.dataset.category;
-          renderFilters();
-          renderArticles();
-        });
-      });
-    }
-
-    if (projectFilters) {
-      projectFilters.innerHTML = `
-        <button class="filter-button ${projectCategory === "all" ? "active" : ""}" data-category="all">Vše</button>
-        ${config.categories.map(category => `
-          <button class="filter-button ${projectCategory === category.id ? "active" : ""}" data-category="${escapeHTML(category.id)}">${escapeHTML(category.name)}</button>
-        `).join("")}
-      `;
-      projectFilters.querySelectorAll("[data-category]").forEach(button => {
-        button.addEventListener("click", () => {
-          projectCategory = button.dataset.category;
-          renderFilters();
-          renderProjects();
-        });
-      });
-    }
+  function categoryName(id) {
+    return config.categories.find(c => c.id === id)?.name || "Ostatní";
   }
 
   function renderArticles() {
-    const container = $("articles-list");
-    const empty = $("articles-empty");
-    if (!container) return;
-
-    const search = ($("article-search")?.value || "").trim().toLowerCase();
-
-    const filtered = articles.filter(article => {
-      const categoryMatch = articleCategory === "all" || article.category === articleCategory;
-      const text = `${article.title} ${article.excerpt} ${(article.tags || []).join(" ")}`.toLowerCase();
-      return categoryMatch && text.includes(search);
-    });
-
-    container.innerHTML = filtered.map(article => `
+    const search = $("article-search").value.toLocaleLowerCase("cs");
+    const filtered = articles.filter(a =>
+      (articleCategory === "all" || a.category === articleCategory) &&
+      [a.title, a.excerpt, ...(a.tags || [])].join(" ").toLocaleLowerCase("cs").includes(search)
+    );
+    $("articles-list").innerHTML = filtered.map(a => `
       <article class="content-card">
-        <div class="card-meta">
-          <span class="card-category">${escapeHTML(categoryName(article.category))}</span>
-          <span>${escapeHTML(article.readTime || "Článek")}</span>
-        </div>
-        <span class="card-icon">${escapeHTML(article.icon || "⌁")}</span>
-        <h3>${escapeHTML(article.title)}</h3>
-        <p>${escapeHTML(article.excerpt)}</p>
-        <div class="card-bottom">
-          <span>KNOWLEDGE BASE</span>
-          <button class="card-open" type="button" data-open-article="${escapeHTML(article.id)}" aria-label="Otevřít článek">↗</button>
-        </div>
-      </article>
-    `).join("");
-
-    if (empty) empty.hidden = filtered.length !== 0;
-
-    container.querySelectorAll("[data-open-article]").forEach(button => {
-      button.addEventListener("click", () => openArticle(button.dataset.openArticle));
-    });
-
-    container.querySelectorAll(".content-card").forEach((card, index) => {
-      card.addEventListener("click", event => {
-        if (event.target.closest("button")) return;
-        const article = filtered[index];
-        if (article) openArticle(article.id);
-      });
-    });
+        <div class="card-icon">${escapeHTML(a.icon || "✦")}</div>
+        <div class="card-meta">${escapeHTML(categoryName(a.category))} · ${escapeHTML(a.readTime || "")}</div>
+        <h3>${escapeHTML(a.title)}</h3>
+        <p>${escapeHTML(a.excerpt)}</p>
+        <button class="text-link" data-open-article="${escapeHTML(a.id)}">Číst článek ↗</button>
+      </article>`).join("");
+    $("articles-empty").hidden = filtered.length > 0;
   }
 
   function renderProjects() {
-    const container = $("projects-list");
-    const empty = $("projects-empty");
-    if (!container) return;
-
-    const search = ($("project-search")?.value || "").trim().toLowerCase();
-
-    const filtered = projects.filter(project => {
-      const categoryMatch = projectCategory === "all" || project.category === projectCategory;
-      const text = `${project.title} ${project.description} ${project.difficulty || ""}`.toLowerCase();
-      return categoryMatch && text.includes(search);
-    });
-
-    container.innerHTML = filtered.map(project => `
-      <article class="content-card">
-        <div class="card-meta">
-          <span class="card-category">${escapeHTML(categoryName(project.category))}</span>
-          <span>${escapeHTML(project.difficulty || "Projekt")}</span>
-        </div>
-        <span class="card-icon">${escapeHTML(project.icon || "⌁")}</span>
-        <h3>${escapeHTML(project.title)}</h3>
-        <p>${escapeHTML(project.description)}</p>
-        <div class="card-bottom">
-          <span>${escapeHTML(project.time || "DIY PROJECT")}</span>
-          <button class="card-open" type="button" data-open-project="${escapeHTML(project.id)}" aria-label="Otevřít projekt">↗</button>
-        </div>
-      </article>
-    `).join("");
-
-    if (empty) empty.hidden = filtered.length !== 0;
-
-    container.querySelectorAll("[data-open-project]").forEach(button => {
-      button.addEventListener("click", () => openProject(button.dataset.openProject));
-    });
-
-    container.querySelectorAll(".content-card").forEach((card, index) => {
-      card.addEventListener("click", event => {
-        if (event.target.closest("button")) return;
-        const project = filtered[index];
-        if (project) openProject(project.id);
-      });
-    });
+    const search = $("project-search").value.toLocaleLowerCase("cs");
+    const filtered = projects.filter(p =>
+      (projectCategory === "all" || p.category === projectCategory) &&
+      [p.title, p.description, ...(p.components || [])].join(" ").toLocaleLowerCase("cs").includes(search)
+    );
+    $("projects-list").innerHTML = filtered.map(p => `
+      <article class="content-card project-card">
+        <div class="card-icon">${escapeHTML(p.icon || "◈")}</div>
+        <div class="card-meta">${escapeHTML(categoryName(p.category))} · ${escapeHTML(p.difficulty || "")}</div>
+        <h3>${escapeHTML(p.title)}</h3>
+        <p>${escapeHTML(p.description)}</p>
+        <div class="project-time">◷ ${escapeHTML(p.time || "")}</div>
+        <button class="text-link" data-open-project="${escapeHTML(p.id)}">Zobrazit projekt ↗</button>
+      </article>`).join("");
+    $("projects-empty").hidden = filtered.length > 0;
   }
 
   function openDialog(html) {
     const dialog = $("content-dialog");
-    const content = $("dialog-content");
-    if (!dialog || !content) return;
-
-    content.innerHTML = html;
-    if (typeof dialog.showModal === "function") dialog.showModal();
-    else dialog.setAttribute("open", "");
-
-    content.querySelectorAll("[data-copy-code]").forEach(button => {
-      button.addEventListener("click", async () => {
-        const code = content.querySelector("pre")?.textContent || "";
-        try {
-          await navigator.clipboard.writeText(code);
-          notify("Kód zkopírován.");
-        } catch {
-          notify("Kopírování není v tomto prohlížeči dostupné.");
-        }
-      });
-    });
+    $("dialog-content").innerHTML = html;
+    dialog.showModal();
+    requestAnimationFrame(() => dialog.classList.add("is-visible"));
   }
 
-  function openArticle(id) {
-    const article = articles.find(item => item.id === id);
-    if (!article) return;
-
-    const paragraphs = String(article.content || "")
-      .split(/\n\s*\n/)
-      .map(paragraph => `<p>${escapeHTML(paragraph).replace(/\n/g, "<br>")}</p>`)
-      .join("");
-
-    openDialog(`
-      <div class="eyebrow">${escapeHTML(categoryName(article.category))} / ARTICLE</div>
-      <h2>${escapeHTML(article.title)}</h2>
-      <p>${escapeHTML(article.excerpt)}</p>
-      <div class="dialog-article">${paragraphs}</div>
-    `);
-  }
-
-  function openProject(id) {
-    const project = projects.find(item => item.id === id);
-    if (!project) return;
-
-    const components = (project.components || []).map(item => `<li>${escapeHTML(item)}</li>`).join("");
-    const steps = (project.steps || []).map(item => `<li>${escapeHTML(item)}</li>`).join("");
-
-    openDialog(`
-      <div class="eyebrow">${escapeHTML(categoryName(project.category))} / PROJECT</div>
-      <h2>${escapeHTML(project.title)}</h2>
-      <p>${escapeHTML(project.description)}</p>
-      <h3>Potřebné komponenty</h3>
-      <ul>${components}</ul>
-      <h3>Postup</h3>
-      <ol>${steps}</ol>
-      ${project.code ? `
-        <h3>Ukázkový kód</h3>
-        <div class="dialog-code">
-          <button class="copy-code" type="button" data-copy-code>Kopírovat kód</button>
-          <pre>${escapeHTML(project.code)}</pre>
-        </div>
-      ` : ""}
-      ${project.note ? `<h3>Poznámka</h3><p>${escapeHTML(project.note)}</p>` : ""}
-    `);
-  }
-
-  function initDialog() {
+  function closeDialog() {
     const dialog = $("content-dialog");
-    const close = $("dialog-close");
-    if (!dialog || !close) return;
-
-    close.addEventListener("click", () => dialog.close());
-    dialog.addEventListener("click", event => {
-      if (event.target === dialog) dialog.close();
-    });
+    dialog.classList.remove("is-visible");
+    setTimeout(() => {
+      if (dialog.open) dialog.close();
+    }, 220);
   }
 
-  function initTheme() {
-    const button = $("theme-toggle");
-    const icon = $("theme-icon");
-    if (!button) return;
-
-    let theme = localStorage.getItem(storage.theme) || config.appearance.defaultTheme || "dark";
-
-    function applyTheme() {
-      document.documentElement.dataset.theme = theme;
-      if (icon) icon.textContent = theme === "dark" ? "☼" : "☾";
-      document.querySelector('meta[name="theme-color"]')?.setAttribute(
-        "content",
-        theme === "dark" ? "#0b0f0e" : "#f3f6f2"
-      );
-    }
-
-    button.addEventListener("click", () => {
-      theme = theme === "dark" ? "light" : "dark";
-      localStorage.setItem(storage.theme, theme);
-      applyTheme();
-    });
-
-    applyTheme();
+  function openArticle(article) {
+    openDialog(`
+      <div class="eyebrow">${escapeHTML(categoryName(article.category))} · ${escapeHTML(article.readTime || "")}</div>
+      <h2>${escapeHTML(article.title)}</h2>
+      <p class="dialog-lead">${escapeHTML(article.excerpt)}</p>
+      <div class="article-body">${article.content || ""}</div>
+      <div class="tag-list">${(article.tags || []).map(t => `<span>${escapeHTML(t)}</span>`).join("")}</div>
+    `);
   }
 
-  function initMobileMenu() {
-    const button = $("mobile-menu-toggle");
-    const nav = $("main-nav");
-    if (!button || !nav) return;
-
-    button.addEventListener("click", () => {
-      const open = nav.classList.toggle("is-open");
-      button.setAttribute("aria-expanded", String(open));
-    });
-
-    nav.querySelectorAll("a").forEach(link => {
-      link.addEventListener("click", () => {
-        nav.classList.remove("is-open");
-        button.setAttribute("aria-expanded", "false");
-      });
-    });
+  function openProject(project) {
+    openDialog(`
+      <div class="eyebrow">${escapeHTML(categoryName(project.category))} · ${escapeHTML(project.difficulty || "")}</div>
+      <h2>${escapeHTML(project.title)}</h2>
+      <p class="dialog-lead">${escapeHTML(project.description)}</p>
+      <h3>Potřebné součástky</h3>
+      <ul>${(project.components || []).map(c => `<li>${escapeHTML(c)}</li>`).join("")}</ul>
+      <h3>Postup</h3>
+      <ol>${(project.steps || []).map(s => `<li>${escapeHTML(s)}</li>`).join("")}</ol>
+      <h3>Ukázkový kód</h3>
+      <pre><code>${escapeHTML(project.code || "")}</code></pre>
+      <p class="note-box">${escapeHTML(project.note || "")}</p>
+    `);
   }
 
-  function initNavigationHighlight() {
-    const links = [...document.querySelectorAll(".nav-link")];
-    const sections = links.map(link => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+  function initEvents() {
+    $("article-search").addEventListener("input", renderArticles);
+    $("project-search").addEventListener("input", renderProjects);
 
-    if (!("IntersectionObserver" in window)) return;
+    $("category-grid").addEventListener("click", event => {
+      const card = event.target.closest("[data-category]");
+      if (!card) return;
+      articleCategory = projectCategory = card.dataset.category;
+      renderFilters("article");
+      renderFilters("project");
+      renderArticles();
+      renderProjects();
+      document.getElementById("articles").scrollIntoView({ behavior: "smooth" });
+    });
 
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        links.forEach(link => {
-          link.classList.toggle("active", link.getAttribute("href") === `#${entry.target.id}`);
-        });
-      });
-    }, { rootMargin: "-35% 0px -55% 0px" });
+    $("articles-list").addEventListener("click", event => {
+      const button = event.target.closest("[data-open-article]");
+      if (!button) return;
+      const article = articles.find(a => a.id === button.dataset.openArticle);
+      if (article) openArticle(article);
+    });
 
-    sections.forEach(section => observer.observe(section));
-  }
+    $("projects-list").addEventListener("click", event => {
+      const button = event.target.closest("[data-open-project]");
+      if (!button) return;
+      const project = projects.find(p => p.id === button.dataset.openProject);
+      if (project) openProject(project);
+    });
 
-  function initSearch() {
-    $("article-search")?.addEventListener("input", renderArticles);
-    $("project-search")?.addEventListener("input", renderProjects);
+    $("dialog-close").addEventListener("click", closeDialog);
+    $("content-dialog").addEventListener("click", event => {
+      if (event.target === $("content-dialog")) closeDialog();
+    });
+    $("content-dialog").addEventListener("cancel", event => {
+      event.preventDefault();
+      closeDialog();
+    });
+
+    $("mobile-menu-toggle").addEventListener("click", () => {
+      const nav = $("main-nav");
+      const open = nav.classList.toggle("open");
+      $("mobile-menu-toggle").setAttribute("aria-expanded", String(open));
+    });
+    $("main-nav").querySelectorAll("a").forEach(a => a.addEventListener("click", () => {
+      $("main-nav").classList.remove("open");
+      $("mobile-menu-toggle").setAttribute("aria-expanded", "false");
+    }));
+
+    $("theme-toggle").addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem(config.storage.theme, next);
+      $("theme-icon").textContent = next === "dark" ? "☀" : "☾";
+    });
   }
 
   function init() {
+    const savedTheme = localStorage.getItem(config.storage.theme) || config.appearance.defaultTheme;
+    document.documentElement.dataset.theme = savedTheme;
+    $("theme-icon").textContent = savedTheme === "dark" ? "☀" : "☾";
     $("current-year").textContent = new Date().getFullYear();
-
     renderCategories();
-    renderFilters();
+    renderFilters("article");
+    renderFilters("project");
     renderArticles();
     renderProjects();
-
-    initDialog();
-    initTheme();
-    initMobileMenu();
-    initNavigationHighlight();
-    initSearch();
+    initEvents();
   }
 
   window.VoltLab = {
     get articles() { return articles; },
     get projects() { return projects; },
-
-    saveArticles(items) {
-      articles = items;
-      writeStorage(storage.articles, articles);
-      renderArticles();
-    },
-
-    saveProjects(items) {
-      projects = items;
-      writeStorage(storage.projects, projects);
-      renderProjects();
-    },
-
+    saveArticles,
+    saveProjects,
     resetContent() {
-      articles = window.VOLTLAB_DEFAULT_ARTICLES || [];
-      projects = window.VOLTLAB_DEFAULT_PROJECTS || [];
-      localStorage.removeItem(storage.articles);
-      localStorage.removeItem(storage.projects);
-      renderArticles();
-      renderProjects();
+      if (!confirm("Opravdu chceš obnovit výchozí obsah?")) return;
+      saveArticles(structuredClone(window.VOLTLAB_DEFAULT_ARTICLES));
+      saveProjects(structuredClone(window.VOLTLAB_DEFAULT_PROJECTS));
       notify("Výchozí obsah byl obnoven.");
     },
-
     notify
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  document.addEventListener("DOMContentLoaded", init);
 })();
