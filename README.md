@@ -1,41 +1,34 @@
 
 # ⚡ VoltLab V3
 
-**VoltLab – Elektronika v praxi**
+**Moderní technický web zaměřený na elektroniku, Arduino, robotiku, 3D tisk a chytrou domácnost.**
 
-Moderní technický web zaměřený na elektroniku, Arduino, robotiku a automatizaci.
+VoltLab je projekt pro všechny technické nadšence, bastlíře, studenty a kutily. Nabízí články, praktické projekty, návody, kalkulačky a další užitečné nástroje.
 
 ---
 
 ## 🚀 Funkce
 
-- Moderní responzivní design
-- Tmavý a světlý režim
-- Technické články
-- Projekty a návody
-- Arduino kódové ukázky
-- Kopírování zdrojového kódu
-- Galerie obrázků
-- Ohmův zákon – kalkulačka
-- Převodník jednotek
-- Kalkulačka barevného kódu rezistorů
-- Vyhledávání článků
-- Kategorie a štítky
-- Administrační MOD MENU
-- Správa článků a projektů
-- Správa galerie
-- Vlastní kategorie
-- Správa widgetů
-- Úprava textů hlavní stránky
-- Statistiky
-- Import a export JSON záloh
+- 📚 Technické články a návody
+- 🔧 Praktické elektronické projekty
+- 🤖 Arduino a robotika
+- 🏠 Chytrá domácnost a ESP32
+- 🖨️ 3D tisk
+- 🧮 Elektronické kalkulačky
+- ⚡ Ohmův zákon
+- 🔌 Převodník jednotek
+- 🎨 Výpočet hodnoty rezistorů
+- 🖼️ Galerie projektů
+- 🌙 Tmavý a světlý režim
+- 🛠️ Administrace obsahu
+- 💾 Export a import dat ve formátu JSON
 
 ---
 
 ## 📁 Struktura projektu
 
 ```text
-VoltLab/
+VoltLab-V3/
 │
 ├── index.html
 ├── style.css
@@ -45,120 +38,216 @@ VoltLab/
 ├── widgets.js
 ├── app.js
 ├── admin.js
+├── README.md
 │
-└── README.md
+└── assets/
+    └── images/
+        ├── arduino.jpg
+        ├── electronics.jpg
+        ├── robotics.jpg
+        └── projects/
 ```
 
----
-
-## 🛠️ Instalace
-
-1. Stáhni nebo naklonuj celý repozitář.
-2. Otevři složku projektu.
-3. Zkontroluj, že jsou všechny JavaScriptové soubory ve stejné složce jako `index.html`.
-4. Otevři `index.html` v prohlížeči.
-
-Pro lokální vývoj můžeš použít například rozšíření Live Server ve Visual Studio Code.
+Obrázky v adresáři `assets/images/` jsou připravené jako očekávané cesty. Vlastní obrázky je potřeba do projektu doplnit.
 
 ---
 
-## 🔐 Administrační MOD MENU
+## 🧰 Použité technologie
 
-Výchozí demonstrační heslo:
+| Technologie | Využití |
+|---|---|
+| HTML5 | Struktura webu |
+| CSS3 | Vzhled a responzivní design |
+| JavaScript | Funkce a interaktivita |
+| LocalStorage | Ukládání dat v prohlížeči |
+| SessionStorage | Dočasná administrační relace |
+| JSON | Záloha a obnovení dat |
+
+Projekt nevyžaduje instalaci Node.js ani dalších balíčků.
+
+---
+
+## 💻 Spuštění projektu
+
+### 1. Stažení projektu
+
+Naklonuj repozitář:
+
+```bash
+git clone https://github.com/TVUJ-UCET/VoltLab-V3.git
+```
+
+Přejdi do složky:
+
+```bash
+cd VoltLab-V3
+```
+
+### 2. Otevření webu
+
+Otevři soubor `index.html` ve webovém prohlížeči.
+
+Pro pohodlnější vývoj doporučujeme použít rozšíření Live Server ve Visual Studio Code.
+
+### 3. Úprava nastavení
+
+Základní nastavení webu najdeš v souboru:
 
 ```text
-zmen-me-2026
+config.js
 ```
 
-Heslo můžeš změnit v souboru `config.js`:
+Výchozí články:
 
-```javascript
-admin: {
-  enabled: true,
-  demoPassword: "TVOJE-NOVE-HESLO"
-}
+```text
+articles.js
 ```
 
-**Bezpečnostní upozornění:**
+Výchozí projekty:
 
-Toto přihlašování je pouze demonstrační. Heslo uložené v JavaScriptu může návštěvník webu zjistit.
+```text
+projects.js
+```
 
-Pro ostrý provoz je potřeba serverová autentizace a databáze.
+Kalkulačky a nástroje:
+
+```text
+widgets.js
+```
+
+Hlavní aplikační logika:
+
+```text
+app.js
+```
+
+Administrace:
+
+```text
+admin.js
+```
+
+---
+
+## 🔗 Pořadí načítání JavaScriptu
+
+Soubory musí být v `index.html` načteny ve správném pořadí:
+
+```html
+<script src="config.js"></script>
+<script src="articles.js"></script>
+<script src="projects.js"></script>
+<script src="widgets.js"></script>
+<script src="app.js"></script>
+<script src="admin.js"></script>
+```
+
+Pokud pořadí změníš, některé funkce nemusí být dostupné.
+
+---
+
+## 🛠️ Administrace
+
+Administrace umožňuje:
+
+- Spravovat články
+- Spravovat projekty
+- Spravovat galerii
+- Přidávat a upravovat kategorie
+- Zapínat a vypínat widgety
+- Upravovat texty úvodní stránky
+- Exportovat a importovat data
+
+Administraci otevřeš tlačítkem pro správu webu.
+
+### Bezpečnostní upozornění
+
+Současná administrace je pouze demonstrační.
+
+Přihlašovací údaj uložený v JavaScriptu lze zobrazit ve zdrojovém kódu. Nepoužívej proto tuto verzi jako zabezpečenou administraci veřejného webu.
+
+Pro skutečné uživatelské účty, bezpečné přihlášení a společné ukládání dat je potřeba doplnit backend, databázi a autentizaci.
 
 ---
 
 ## 💾 Ukládání dat
 
-VoltLab V3 v této verzi používá `localStorage`.
+VoltLab V3 používá LocalStorage.
 
 To znamená:
 
-- Data se ukládají do konkrétního prohlížeče.
-- Jiný návštěvník neuvidí tvoje lokální změny.
-- Data se automaticky nesynchronizují mezi zařízeními.
-- Smazání dat prohlížeče může způsobit jejich ztrátu.
+- Data zůstávají uložená v konkrétním prohlížeči.
+- Jiný návštěvník automaticky neuvidí tvoje změny.
+- Vymazáním dat prohlížeče může dojít ke ztrátě uloženého obsahu.
+- Pro přenos dat mezi zařízeními použij export a import JSON.
 
-Pravidelně používej export záloh v MOD MENU.
-
-Galerie ukládá obrázky jako data URL. Velké množství obrázků může zaplnit dostupné úložiště prohlížeče.
+Pravidelně si vytvářej zálohy.
 
 ---
 
-## 🌐 Publikování přes GitHub Pages
+## 🌐 Publikování na GitHub Pages
 
-1. Přihlas se na GitHub.
-2. Vytvoř nový veřejný repozitář, například `voltlab`.
-3. Nahraj všechny soubory projektu.
-4. Otevři nastavení repozitáře.
-5. Vyber **Pages**.
-6. V části Build and deployment zvol:
-   - Source: Deploy from a branch
-   - Branch: main
-   - Folder: / (root)
+1. Vytvoř nový GitHub repository.
+2. Nahraj všechny soubory projektu.
+3. Otevři nastavení repozitáře.
+4. Vyber **Pages**.
+5. V části Build and deployment zvol nasazení z větve.
+6. Vyber větev `main` a složku `/root`.
 7. Ulož nastavení.
-8. Počkej na dokončení publikování.
 
-Web bude dostupný na adrese:
+Po dokončení bude web dostupný na adrese podobné této:
 
 ```text
-https://TVUJ-GITHUB-UCET.github.io/voltlab/
+https://TVUJ-UCET.github.io/VoltLab-V3/
 ```
 
-Adresa se může lišit podle názvu repozitáře a nastavení GitHubu.
+Skutečná adresa závisí na názvu účtu a repozitáře.
 
 ---
 
-## 🧩 Technologie
+## 📱 Responzivní design
 
-- HTML5
-- CSS3
-- Vanilla JavaScript
-- LocalStorage
-- GitHub Pages
+Web je navržený pro:
 
-Projekt nevyžaduje instalaci Node.js ani sestavovací nástroje.
+- Stolní počítače
+- Notebooky
+- Tablety
+- Mobilní telefony
 
 ---
 
-## 🔮 Možnosti dalšího rozvoje
+## 🔮 Plánovaný vývoj
 
-- Připojení databáze
-- Skutečné uživatelské účty
-- Role administrátorů a redaktorů
-- Cloudové ukládání obrázků
-- Centrální správa obsahu
-- Rozšířené statistiky
-- API pro externí služby
-- PWA a offline režim
+- [ ] Kompletní editor článků
+- [ ] Pokročilý editor projektů
+- [ ] Rozšířená galerie
+- [ ] Vyhledávání článků a projektů
+- [ ] Další elektronické kalkulačky
+- [ ] Schémata zapojení
+- [ ] Lepší mobilní administrace
+- [ ] Backend a databáze
+- [ ] Bezpečné uživatelské účty
+- [ ] Sdílení obsahu mezi zařízeními
+
+---
+
+## 🤝 Přispívání
+
+Máš nápad na vylepšení?
+
+1. Forkni repozitář.
+2. Vytvoř novou větev.
+3. Proveď změny.
+4. Odešli Pull Request.
+
+Uvítáme nové návody, projekty, opravy a nápady.
 
 ---
 
 ## 📜 Licence
 
-Určeno pro osobní a vzdělávací použití.
-
-Před dalším šířením projektu si ověř práva k použitým obrázkům, ikonám a externím knihovnám.
+Licenci projektu je potřeba doplnit podle toho, jakým způsobem chce autor VoltLab zveřejňovat a povolovat další používání zdrojového kódu.
 
 ---
 
-**VoltLab V3 – Technologie začíná nápadem. ⚡**
+**VoltLab V3 – Tvoř. Objevuj. Programuj.**
