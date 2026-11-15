@@ -4,577 +4,393 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080d18">
-  <meta name="description" content="VoltLab – svět elektroniky, Arduina, robotiky a automatizace. Projekty, návody a praktické nástroje.">
-  <title>VoltLab – Elektronika v praxi</title>
-
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#0b1110">
+  <meta name="description" content="VoltLab – Arduino, elektronika, robotika, 3D tisk a chytré technologie.">
+  <title>VoltLab – Build. Learn. Create.</title>
   <link rel="stylesheet" href="style.css">
+
+  <script defer src="config.js"></script>
+  <script defer src="articles.js"></script>
+  <script defer src="projects.js"></script>
+  <script defer src="widgets.js"></script>
+  <script defer src="app.js"></script>
+  <script defer src="admin.js"></script>
 </head>
 
 <body>
-  <div class="site-shell">
 
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <div class="container topbar-inner">
-        <span><span class="status-dot"></span> LAB ONLINE</span>
-        <span class="topbar-message">Elektronika • Arduino • Robotika • Automatizace</span>
-        <span class="topbar-version">VOLT LAB / V3.0</span>
-      </div>
-    </div>
-
-    <!-- HEADER -->
-    <header class="header" id="top">
-      <div class="container header-inner">
-
-        <a href="#top" class="brand" aria-label="VoltLab – domů">
-          <span class="brand-icon">ϟ</span>
-          <span class="brand-text">
-            <strong>VOLT<span>LAB</span></strong>
-            <small>ENGINEERING & ELECTRONICS</small>
-          </span>
-        </a>
-
-        <button class="mobile-menu-button" id="mobileMenuButton"
-          aria-label="Otevřít navigaci" aria-expanded="false">
-          ☰
-        </button>
-
-        <nav class="navigation" id="navigation">
-          <a href="#home">Domů</a>
-          <a href="#articles">Články</a>
-          <a href="#projects">Projekty</a>
-          <a href="#tools">Nástroje</a>
-          <a href="#gallery">Galerie</a>
-          <a href="#about">O nás</a>
-        </nav>
-
-        <div class="header-actions">
-          <button class="icon-button" id="themeToggle" aria-label="Přepnout vzhled">
-            ☼
-          </button>
-          <button class="admin-button" id="openAdmin">
-            <span>⌘</span> MOD ACCESS
-          </button>
-        </div>
-
-      </div>
-    </header>
-
-    <main>
-
-      <!-- HERO -->
-      <section class="hero section" id="home">
-        <div class="hero-grid"></div>
-
-        <div class="container hero-content">
-          <div class="hero-copy">
-            <div class="eyebrow">
-              <span class="eyebrow-line"></span>
-              ENGINEERING YOUR IDEAS
-            </div>
-
-            <h1>
-              Technologie<br>
-              začíná <span>nápadem.</span>
-            </h1>
-
-            <p class="hero-description">
-              Objevuj svět elektroniky, Arduina, robotiky a automatizace.
-              Praktické projekty, návody a nástroje na jednom místě.
-            </p>
-
-            <div class="hero-buttons">
-              <a href="#projects" class="button button-primary">
-                Prozkoumat projekty <span>↗</span>
-              </a>
-              <a href="#articles" class="button button-secondary">
-                Prohlédnout články
-              </a>
-            </div>
-
-            <div class="hero-stats">
-              <div>
-                <strong id="statProjects">00</strong>
-                <span>PROJEKTŮ</span>
-              </div>
-              <div>
-                <strong id="statArticles">00</strong>
-                <span>ČLÁNKŮ</span>
-              </div>
-              <div>
-                <strong>∞</strong>
-                <span>MOŽNOSTÍ</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="hero-visual">
-            <div class="circuit-card">
-              <div class="circuit-top">
-                <span>VOLT SYSTEM</span>
-                <span class="circuit-live">● ACTIVE</span>
-              </div>
-
-              <div class="circuit-symbol">ϟ</div>
-
-              <div class="circuit-data">
-                <div>
-                  <span>VOLTAGE</span>
-                  <strong>5.00 V</strong>
-                </div>
-                <div>
-                  <span>FREQUENCY</span>
-                  <strong>50 Hz</strong>
-                </div>
-                <div>
-                  <span>SYSTEM</span>
-                  <strong>ONLINE</strong>
-                </div>
-              </div>
-
-              <div class="circuit-lines"></div>
-            </div>
-            <div class="floating-tag tag-one">ARDUINO / 001</div>
-            <div class="floating-tag tag-two">ELECTRONICS LAB</div>
-          </div>
-        </div>
-
-        <div class="hero-bottom container">
-          <span>SCROLL TO EXPLORE</span>
-          <span class="scroll-line"></span>
-          <span>49° N / ENGINEERING WORLD</span>
-        </div>
-      </section>
-
-      <!-- CATEGORIES -->
-      <section class="categories section">
-        <div class="container">
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">EXPLORE THE FIELD</div>
-              <h2>Svět <span>technologií.</span></h2>
-            </div>
-            <p>Vyber si oblast, která tě zajímá.</p>
-          </div>
-
-          <div class="category-grid" id="categoryGrid">
-            <a href="#articles" class="category-card" data-category="Arduino">
-              <span class="category-icon">⌘</span>
-              <strong>Arduino</strong>
-              <small>Mikrokontroléry a programování</small>
-              <span class="category-arrow">↗</span>
-            </a>
-
-            <a href="#articles" class="category-card" data-category="Elektronika">
-              <span class="category-icon">ϟ</span>
-              <strong>Elektronika</strong>
-              <small>Součástky a zapojení</small>
-              <span class="category-arrow">↗</span>
-            </a>
-
-            <a href="#articles" class="category-card" data-category="Robotika">
-              <span class="category-icon">⚙</span>
-              <strong>Robotika</strong>
-              <small>Roboti a chytré systémy</small>
-              <span class="category-arrow">↗</span>
-            </a>
-
-            <a href="#articles" class="category-card" data-category="Automatizace">
-              <span class="category-icon">⌁</span>
-              <strong>Automatizace</strong>
-              <small>Řízení a automatické procesy</small>
-              <span class="category-arrow">↗</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- ARTICLES -->
-      <section class="section articles-section" id="articles">
-        <div class="container">
-
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">KNOWLEDGE DATABASE / 01</div>
-              <h2>Technické <span>články.</span></h2>
-            </div>
-            <a href="#articles" class="text-link" id="showAllArticles">
-              Všechny články ↗
-            </a>
-          </div>
-
-          <div class="content-toolbar">
-            <div class="search-box">
-              <span>⌕</span>
-              <input id="articleSearch" type="search"
-                placeholder="Hledat články, návody, témata...">
-            </div>
-            <div class="filter-list" id="articleFilters">
-              <button class="filter-button active" data-filter="Vše">Vše</button>
-              <button class="filter-button" data-filter="Arduino">Arduino</button>
-              <button class="filter-button" data-filter="Elektronika">Elektronika</button>
-              <button class="filter-button" data-filter="Robotika">Robotika</button>
-              <button class="filter-button" data-filter="Automatizace">Automatizace</button>
-            </div>
-          </div>
-
-          <div class="article-grid" id="articleGrid">
-            <div class="empty-state">Načítám články...</div>
-          </div>
-
-          <div class="pagination-area" id="articlePagination"></div>
-        </div>
-      </section>
-
-      <!-- PROJECTS -->
-      <section class="section projects-section" id="projects">
-        <div class="container">
-
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">BUILT IN THE LAB / 02</div>
-              <h2>Postaveno <span>v dílně.</span></h2>
-            </div>
-            <p>Inspirace pro vlastní elektronické projekty.</p>
-          </div>
-
-          <div class="project-grid" id="projectGrid">
-            <div class="empty-state">Načítám projekty...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- CODE EDITOR -->
-      <section class="section code-section" id="code">
-        <div class="container">
-          <div class="code-layout">
-
-            <div class="code-copy">
-              <div class="eyebrow">PROGRAMMING STATION / 03</div>
-              <h2>Od nápadu<br>k <span>funkčnímu kódu.</span></h2>
-              <p>
-                Prohlédni si ukázkové Arduino programy, experimentuj
-                s kódem a využij připravené základy pro vlastní projekty.
-              </p>
-              <a href="#tools" class="button button-primary">
-                Otevřít nástroje ↗
-              </a>
-            </div>
-
-            <div class="code-window">
-              <div class="code-window-header">
-                <div class="window-dots">
-                  <i></i><i></i><i></i>
-                </div>
-                <span>blink.ino</span>
-                <button class="copy-button" id="copyCode">KOPÍROVAT</button>
-              </div>
-
-              <pre><code id="codeExample">// VOLTLAB / ARDUINO BASIC
-
-const int ledPin = 13;
-
-void setup() {
-  pinMode(ledPin, OUTPUT);
-}
-
-void loop() {
-  digitalWrite(ledPin, HIGH);
-  delay(1000);
-
-  digitalWrite(ledPin, LOW);
-  delay(1000);
-}</code></pre>
-
-              <div class="code-window-footer">
-                <span>● ARDUINO IDE</span>
-                <span>C++ / 9600 BAUD</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- TOOLS -->
-      <section class="section tools-section" id="tools">
-        <div class="container">
-
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">ENGINEERING UTILITIES / 04</div>
-              <h2>Technické <span>nástroje.</span></h2>
-            </div>
-            <p>Praktické výpočty pro každodenní použití.</p>
-          </div>
-
-          <div class="tools-grid">
-
-            <div class="tool-card">
-              <div class="tool-icon">Ω</div>
-              <div class="tool-label">CALCULATOR / 001</div>
-              <h3>Ohmův zákon</h3>
-              <p>Výpočet napětí, proudu a odporu.</p>
-
-              <label for="ohmVoltage">Napětí (V)</label>
-              <input id="ohmVoltage" type="number" step="any" placeholder="Např. 12">
-
-              <label for="ohmCurrent">Proud (A)</label>
-              <input id="ohmCurrent" type="number" step="any" placeholder="Např. 0.5">
-
-              <button class="button button-primary" id="calculateOhm">
-                Vypočítat
-              </button>
-
-              <div class="tool-result" id="ohmResult">
-                Výsledek se zobrazí zde.
-              </div>
-            </div>
-
-            <div class="tool-card">
-              <div class="tool-icon">⌁</div>
-              <div class="tool-label">CONVERTER / 002</div>
-              <h3>Převod jednotek</h3>
-              <p>Rychlý převod elektrických jednotek.</p>
-
-              <label for="unitValue">Hodnota</label>
-              <input id="unitValue" type="number" step="any" placeholder="Zadej hodnotu">
-
-              <label for="unitType">Typ převodu</label>
-              <select id="unitType">
-                <option value="mA">mA → A</option>
-                <option value="A">A → mA</option>
-                <option value="kOhm">kΩ → Ω</option>
-                <option value="Ohm">Ω → kΩ</option>
-                <option value="mV">mV → V</option>
-                <option value="V">V → mV</option>
-              </select>
-
-              <button class="button button-primary" id="convertUnit">
-                Převést
-              </button>
-
-              <div class="tool-result" id="unitResult">
-                Výsledek se zobrazí zde.
-              </div>
-            </div>
-
-            <div class="tool-card">
-              <div class="tool-icon">◉</div>
-              <div class="tool-label">RESISTOR / 003</div>
-              <h3>Barevný kód rezistoru</h3>
-              <p>Určení hodnoty rezistoru podle barevných proužků.</p>
-
-              <label for="resistorBand1">První proužek</label>
-              <select id="resistorBand1">
-                <option value="0">Černá – 0</option>
-                <option value="1">Hnědá – 1</option>
-                <option value="2">Červená – 2</option>
-                <option value="3">Oranžová – 3</option>
-                <option value="4">Žlutá – 4</option>
-                <option value="5">Zelená – 5</option>
-                <option value="6">Modrá – 6</option>
-                <option value="7">Fialová – 7</option>
-                <option value="8">Šedá – 8</option>
-                <option value="9">Bílá – 9</option>
-              </select>
-
-              <label for="resistorBand2">Druhý proužek</label>
-              <select id="resistorBand2">
-                <option value="0">Černá – 0</option>
-                <option value="1">Hnědá – 1</option>
-                <option value="2">Červená – 2</option>
-                <option value="3">Oranžová – 3</option>
-                <option value="4">Žlutá – 4</option>
-                <option value="5">Zelená – 5</option>
-                <option value="6">Modrá – 6</option>
-                <option value="7">Fialová – 7</option>
-                <option value="8">Šedá – 8</option>
-                <option value="9">Bílá – 9</option>
-              </select>
-
-              <label for="resistorMultiplier">Násobitel</label>
-              <select id="resistorMultiplier">
-                <option value="1">Černá ×1</option>
-                <option value="10">Hnědá ×10</option>
-                <option value="100">Červená ×100</option>
-                <option value="1000">Oranžová ×1 000</option>
-                <option value="10000">Žlutá ×10 000</option>
-                <option value="100000">Zelená ×100 000</option>
-                <option value="1000000">Modrá ×1 000 000</option>
-              </select>
-
-              <button class="button button-primary" id="calculateResistor">
-                Vypočítat odpor
-              </button>
-
-              <div class="tool-result" id="resistorResult">
-                Výsledek se zobrazí zde.
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- GALLERY -->
-      <section class="section gallery-section" id="gallery">
-        <div class="container">
-
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">VISUAL ARCHIVE / 05</div>
-              <h2>Galerie <span>laboratoře.</span></h2>
-            </div>
-            <p>Obrázky, inspirace a realizované projekty.</p>
-          </div>
-
-          <div class="gallery-grid" id="galleryGrid">
-            <div class="gallery-placeholder">
-              <span>ϟ</span>
-              <p>Galerie se připravuje.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ABOUT -->
-      <section class="section about-section" id="about">
-        <div class="container about-layout">
-
-          <div>
-            <div class="eyebrow">ABOUT VOLTLAB / 06</div>
-            <h2>Technika není jen teorie.<br><span>Je to tvorba.</span></h2>
-          </div>
-
-          <div class="about-content">
-            <p>
-              VoltLab je prostor pro všechny, které baví elektronika,
-              programování, automatizace a moderní technologie.
-            </p>
-            <p>
-              Naším cílem je vysvětlovat složitá témata jednoduše,
-              sdílet praktické zkušenosti a podporovat vlastní tvorbu.
-            </p>
-            <a href="#articles" class="text-link">Začít objevovat ↗</a>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- NEWSLETTER / CTA -->
-      <section class="section cta-section">
-        <div class="container cta-inner">
-          <div>
-            <div class="eyebrow">YOUR NEXT PROJECT STARTS HERE</div>
-            <h2>Vytvoř něco <span>úžasného.</span></h2>
-            <p>Začni experimentovat. Uč se. Stav. Objevuj.</p>
-          </div>
+  <div class="topbar">
+    <span class="status-dot"></span>
+    VOLTLAB V3.1
+    <span class="topbar-divider">/</span>
+    TECHNICKÁ DÍLNA PRO ZVĚDAVÉ
+  </div>
+
+  <header class="header">
+    <a href="#home" class="logo">
+      <span class="logo-symbol">V<span>•</span></span>
+      <span class="logo-text">Volt<span>Lab</span></span>
+    </a>
+
+    <button class="mobile-menu" id="mobile-menu-toggle" aria-label="Otevřít menu">
+      ☰
+    </button>
+
+    <nav class="navigation" id="main-nav">
+      <a href="#home">Domů</a>
+      <a href="#categories">Kategorie</a>
+      <a href="#articles">Články</a>
+      <a href="#projects">Projekty</a>
+      <a href="#tools">Kalkulačky</a>
+      <a href="#about">O nás</a>
+    </nav>
+
+    <button id="theme-toggle" class="theme-toggle" aria-label="Přepnout vzhled">
+      <span id="theme-icon">☼</span>
+    </button>
+  </header>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="hero section" id="home">
+      <div class="hero-content">
+        <div class="eyebrow">01 / EXPLORE TECHNOLOGY</div>
+
+        <h1>
+          Tvoje nápady.<br>
+          Tvoje technologie.<br>
+          <span class="gradient-text">Tvůj VoltLab.</span>
+        </h1>
+
+        <p>
+          Objev svět Arduina, elektroniky, robotiky a chytrých
+          technologií. Uč se, experimentuj a vytvářej vlastní projekty.
+        </p>
+
+        <div class="hero-buttons">
           <a href="#projects" class="button button-primary">
-            Prozkoumat VoltLab ↗
+            Prozkoumat projekty ↗
+          </a>
+          <a href="#tools" class="button button-secondary">
+            Vyzkoušet kalkulačky
           </a>
         </div>
-      </section>
 
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="footer">
-      <div class="container footer-main">
-
-        <div class="footer-brand">
-          <a href="#top" class="brand">
-            <span class="brand-icon">ϟ</span>
-            <span class="brand-text">
-              <strong>VOLT<span>LAB</span></strong>
-              <small>ENGINEERING & ELECTRONICS</small>
-            </span>
-          </a>
-          <p>Elektronika, která dává nápadům život.</p>
+        <div class="hero-stats">
+          <div><strong>01</strong><span>UČ SE</span></div>
+          <div><strong>02</strong><span>STAVĚJ</span></div>
+          <div><strong>03</strong><span>TVOR</span></div>
         </div>
-
-        <div class="footer-column">
-          <strong>OBSAH</strong>
-          <a href="#articles">Články</a>
-          <a href="#projects">Projekty</a>
-          <a href="#gallery">Galerie</a>
-        </div>
-
-        <div class="footer-column">
-          <strong>NÁSTROJE</strong>
-          <a href="#tools">Kalkulačky</a>
-          <a href="#code">Arduino kód</a>
-          <a href="#about">O VoltLab</a>
-        </div>
-
-        <div class="footer-column">
-          <strong>SYSTÉM</strong>
-          <span>VoltLab V3.0</span>
-          <span>GitHub Pages Ready</span>
-          <span id="footerYear"></span>
-        </div>
-
       </div>
 
-      <div class="container footer-bottom">
-        <span>© <span id="copyrightYear"></span> VOLTLAB</span>
-        <span>BUILT WITH CURIOSITY <span class="footer-bolt">ϟ</span></span>
+      <div class="hero-visual">
+        <div class="hero-orbit orbit-one"></div>
+        <div class="hero-orbit orbit-two"></div>
+
+        <div class="chip">
+          <div class="chip-header">
+            <span>VOLTLAB CHIP</span>
+            <span class="status-dot"></span>
+          </div>
+          <div class="chip-center">VL<span>3</span></div>
+          <div class="chip-footer">
+            <span>ARDUINO</span>
+            <span>ESP32</span>
+            <span>DIY</span>
+          </div>
+        </div>
+
+        <div class="floating-card card-one">
+          <span>⌘</span>
+          <div><strong>HARDWARE</strong><small>Vlastní elektronika</small></div>
+        </div>
+
+        <div class="floating-card card-two">
+          <span>ϟ</span>
+          <div><strong>ENGINEERING</strong><small>Od nápadu k projektu</small></div>
+        </div>
       </div>
-    </footer>
+    </section>
 
-  </div>
+    <!-- KATEGORIE -->
+    <section class="section" id="categories">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">02 / CATEGORIES</div>
+          <h2>Vyber si svůj <span class="gradient-text">směr.</span></h2>
+        </div>
+        <p>Najdi oblast, která tě zajímá, a pusť se do objevování.</p>
+      </div>
 
-  <!-- ARTICLE DETAIL MODAL -->
-  <div class="modal-overlay" id="articleModal" aria-hidden="true">
-    <div class="modal-panel" role="dialog" aria-modal="true"
-      aria-labelledby="articleModalTitle">
-      <button class="modal-close" data-close-modal="articleModal"
-        aria-label="Zavřít">×</button>
-      <div id="articleModalContent"></div>
-    </div>
-  </div>
+      <div class="category-grid" id="category-grid"></div>
+    </section>
 
-  <!-- ADMIN MODAL -->
-  <div class="modal-overlay admin-overlay" id="adminModal" aria-hidden="true">
-    <div class="modal-panel admin-panel" role="dialog" aria-modal="true"
-      aria-labelledby="adminTitle">
-      <button class="modal-close" data-close-modal="adminModal"
-        aria-label="Zavřít">×</button>
-      <div id="adminRoot">
-        <div class="admin-login">
-          <div class="eyebrow">RESTRICTED ACCESS</div>
-          <h2 id="adminTitle">MOD <span>ACCESS.</span></h2>
-          <p>Přístup do administračního rozhraní VoltLab.</p>
-          <form id="adminLoginForm">
-            <label for="adminPassword">Přístupové heslo</label>
-            <input id="adminPassword" type="password"
-              autocomplete="current-password" placeholder="Zadej heslo" required>
-            <button class="button button-primary" type="submit">
-              Přihlásit se ↗
+    <!-- ČLÁNKY -->
+    <section class="section" id="articles">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">03 / KNOWLEDGE BASE</div>
+          <h2>Technické <span class="gradient-text">články.</span></h2>
+        </div>
+      </div>
+
+      <div class="content-controls">
+        <div id="article-filters" class="filter-list"></div>
+        <input id="article-search" class="search-input"
+               type="search" placeholder="Hledat článek...">
+      </div>
+
+      <div class="content-grid" id="articles-list"></div>
+      <p class="empty-state" id="articles-empty" hidden>
+        Žádné články neodpovídají hledání.
+      </p>
+    </section>
+
+    <!-- PROJEKTY -->
+    <section class="section" id="projects">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">04 / PROJECT LAB</div>
+          <h2>Vlastní <span class="gradient-text">projekty.</span></h2>
+        </div>
+      </div>
+
+      <div class="content-controls">
+        <div id="project-filters" class="filter-list"></div>
+        <input id="project-search" class="search-input"
+               type="search" placeholder="Hledat projekt...">
+      </div>
+
+      <div class="content-grid" id="projects-list"></div>
+      <p class="empty-state" id="projects-empty" hidden>
+        Žádné projekty neodpovídají hledání.
+      </p>
+    </section>
+
+    <!-- KALKULAČKY -->
+    <section class="tools-section" id="tools">
+      <div class="section">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">05 / ENGINEERING TOOLS</div>
+            <h2>Technické <span class="gradient-text">kalkulačky.</span></h2>
+          </div>
+          <p>Užitečné výpočty pro elektroniku a každodenní bastlení.</p>
+        </div>
+
+        <div class="calculator-grid">
+
+          <!-- OHMŮV ZÁKON -->
+          <article class="calculator-card">
+            <div class="calculator-label">TOOL 01 / ELECTRONICS</div>
+            <div class="calculator-icon">Ω</div>
+            <h3>Ohmův zákon</h3>
+            <p>Vyplň dvě známé hodnoty a vypočítej třetí.</p>
+
+            <label>Napětí (U)</label>
+            <div class="input-unit">
+              <input id="ohm-voltage" type="number" step="any" placeholder="Např. 5">
+              <select id="ohm-voltage-unit">
+                <option value="1">V</option>
+                <option value="0.001">mV</option>
+                <option value="1000">kV</option>
+              </select>
+            </div>
+
+            <label>Proud (I)</label>
+            <div class="input-unit">
+              <input id="ohm-current" type="number" step="any" placeholder="Např. 20">
+              <select id="ohm-current-unit">
+                <option value="1">A</option>
+                <option value="0.001">mA</option>
+                <option value="1000">kA</option>
+              </select>
+            </div>
+
+            <label>Odpor (R)</label>
+            <div class="input-unit">
+              <input id="ohm-resistance" type="number" step="any" placeholder="Např. 220">
+              <select id="ohm-resistance-unit">
+                <option value="1">Ω</option>
+                <option value="1000">kΩ</option>
+                <option value="1000000">MΩ</option>
+              </select>
+            </div>
+
+            <button class="button button-primary full-button" id="ohm-calculate">
+              Vypočítat →
             </button>
-            <div id="adminLoginMessage" role="status"></div>
-          </form>
-          <small>Demo administrace – před veřejným nasazením nastav vlastní zabezpečení.</small>
+            <div class="calculator-result" id="ohm-result" aria-live="polite">
+              Výsledek se zobrazí zde.
+            </div>
+          </article>
+
+          <!-- VÝKON -->
+          <article class="calculator-card">
+            <div class="calculator-label">TOOL 02 / POWER</div>
+            <div class="calculator-icon">ϟ</div>
+            <h3>Elektrický výkon</h3>
+            <p>Vypočítej výkon, napětí nebo proud.</p>
+
+            <label>Co chceš vypočítat?</label>
+            <select id="power-target" class="form-select">
+              <option value="power">Výkon (P)</option>
+              <option value="voltage">Napětí (U)</option>
+              <option value="current">Proud (I)</option>
+            </select>
+
+            <label>Napětí (U)</label>
+            <div class="input-unit">
+              <input id="power-voltage" type="number" step="any" placeholder="Např. 12">
+              <select id="power-voltage-unit">
+                <option value="1">V</option>
+                <option value="0.001">mV</option>
+                <option value="1000">kV</option>
+              </select>
+            </div>
+
+            <label>Proud (I)</label>
+            <div class="input-unit">
+              <input id="power-current" type="number" step="any" placeholder="Např. 2">
+              <select id="power-current-unit">
+                <option value="1">A</option>
+                <option value="0.001">mA</option>
+                <option value="1000">kA</option>
+              </select>
+            </div>
+
+            <label>Výkon (P)</label>
+            <div class="input-unit">
+              <input id="power-watts" type="number" step="any" placeholder="Např. 24">
+              <select id="power-watts-unit">
+                <option value="1">W</option>
+                <option value="0.001">mW</option>
+                <option value="1000">kW</option>
+              </select>
+            </div>
+
+            <button class="button button-primary full-button" id="power-calculate">
+              Vypočítat →
+            </button>
+            <div class="calculator-result" id="power-result" aria-live="polite">
+              Výsledek se zobrazí zde.
+            </div>
+          </article>
+
+          <!-- LED -->
+          <article class="calculator-card">
+            <div class="calculator-label">TOOL 03 / LED</div>
+            <div class="calculator-icon">▥</div>
+            <h3>Rezistor pro LED</h3>
+            <p>Navrhni předřadný rezistor pro svoji LED.</p>
+
+            <label>Napájecí napětí (V)</label>
+            <input id="led-supply" type="number" value="5" step="any">
+
+            <label>Úbytek LED (V)</label>
+            <input id="led-forward" type="number" value="2" step="any">
+
+            <label>Proud LED (mA)</label>
+            <input id="led-current" type="number" value="20" step="any">
+
+            <button class="button button-primary full-button" id="led-calculate">
+              Navrhnout rezistor →
+            </button>
+            <div class="calculator-result" id="led-result" aria-live="polite">
+              Výsledek se zobrazí zde.
+            </div>
+          </article>
+
+          <!-- PŘEVODNÍK -->
+          <article class="calculator-card">
+            <div class="calculator-label">TOOL 04 / CONVERTER</div>
+            <div class="calculator-icon">⇄</div>
+            <h3>Převodník jednotek</h3>
+            <p>Převáděj elektrické veličiny jednoduše.</p>
+
+            <label>Veličina</label>
+            <select id="convert-type" class="form-select">
+              <option value="voltage">Napětí</option>
+              <option value="current">Proud</option>
+              <option value="power">Výkon</option>
+              <option value="resistance">Odpor</option>
+              <option value="capacitance">Kapacita</option>
+            </select>
+
+            <label>Hodnota</label>
+            <input id="convert-value" type="number" step="any" value="1">
+
+            <div class="unit-row">
+              <div>
+                <label>Z jednotky</label>
+                <select id="convert-from" class="form-select"></select>
+              </div>
+              <div>
+                <label>Na jednotku</label>
+                <select id="convert-to" class="form-select"></select>
+              </div>
+            </div>
+
+            <div class="calculator-result" id="convert-result" aria-live="polite">
+              Výsledek převodu.
+            </div>
+          </article>
+
         </div>
+
+        <p class="safety-note">
+          Výpočty slouží jako orientační pomůcka. Vždy ověř parametry součástek,
+          jejich zatížitelnost a bezpečnostní rezervu.
+        </p>
       </div>
+    </section>
+
+    <!-- O WEBU -->
+    <section class="section about-section" id="about">
+      <div class="about-logo">VL<span>3</span></div>
+      <div>
+        <div class="eyebrow">06 / ABOUT VOLTLAB</div>
+        <h2>Technologie, kterým <span class="gradient-text">rozumíš.</span></h2>
+        <p>
+          VoltLab je místo pro všechny, kteří chtějí objevovat,
+          experimentovat a stavět vlastní technická řešení.
+          Od prvního zapojení LED až po složitější robotické projekty.
+        </p>
+        <a href="#categories" class="text-link">Začít objevovat ↗</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-main section">
+      <a href="#home" class="logo">
+        <span class="logo-symbol">V<span>•</span></span>
+        <span class="logo-text">Volt<span>Lab</span></span>
+      </a>
+
+      <p>Build. Learn. Create.<br>
+        <small>© <span id="current-year"></span> VoltLab V3.1</small>
+      </p>
+
+      <a href="#home" class="back-top">Zpět nahoru ↑</a>
     </div>
-  </div>
 
-  <!-- GLOBAL NOTIFICATIONS -->
-  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+    <div class="footer-bottom section">
+      <span>VOLTLAB / TECHNICAL LAB</span>
+      <span>EXPERIMENT · LEARN · REPEAT</span>
+      <button id="admin-access" class="admin-access" type="button">ADMIN</button>
+    </div>
+  </footer>
 
-  <!-- SCRIPTS -->
-  <script src="config.js"></script>
-  <script src="articles.js"></script>
-  <script src="projects.js"></script>
-  <script src="widgets.js"></script>
-  <script src="app.js"></script>
-  <script src="admin.js"></script>
+  <!-- DETAIL ČLÁNKŮ A PROJEKTŮ -->
+  <dialog id="content-dialog" class="content-dialog">
+    <button class="dialog-close" id="dialog-close" aria-label="Zavřít">×</button>
+    <div id="dialog-content"></div>
+  </dialog>
+
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
 
 </body>
 </html>
