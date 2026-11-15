@@ -2,19 +2,14 @@
 (() => {
   "use strict";
 
-  const CONFIG = window.VOLTLAB_CONFIG || {};
-  const STORAGE = CONFIG.storage || {};
+  const config = window.VOLTLAB_CONFIG;
+  if (!config) {
+    console.error("VoltLab: config.js nebyl načten.");
+    return;
+  }
 
   const $ = (id) => document.getElementById(id);
-
-  const state = {
-    articleCategory: "all",
-    projectCategory: "all",
-    articleSearch: "",
-    projectSearch: "",
-    articles: [],
-    projects: []
-  };
+  const storage = config.storage;
 
   function readStorage(key, fallback) {
     try {
@@ -28,10 +23,18 @@
   function writeStorage(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.warn("VoltLab: Uložení se nezdařilo.", error);
+      return true;
+    } catch {
+      notify("Uložení se nezdařilo. Zkontroluj nastavení prohlížeče.");
+      return false;
     }
   }
+
+  let articles = readStorage(storage.articles, window.VOLTLAB_DEFAULT_ARTICLES || []);
+  let projects = readStorage(storage.projects, window.VOLTLAB_DEFAULT_PROJECTS || []);
+
+  let articleCategory = "all";
+  let projectCategory = "all";
 
   function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -43,490 +46,283 @@
     })[char]);
   }
 
-  function notify(message) {
-    const toast = $("toast-region");
-    if (!toast) return;
-
-    toast.textContent = message;
-    toast.classList.add("visible");
-
-    clearTimeout(notify.timer);
-    notify.timer = setTimeout(() => {
-      toast.classList.remove("visible");
-    }, 2800);
-  }
-
-  function getCategories() {
-    return CONFIG.categories || [];
-  }
-
   function categoryName(id) {
-    const category = getCategories().find(item => item.id === id);
+    const category = config.categories.find(item => item.id === id);
     return category ? category.name : "Ostatní";
   }
 
-  function initializeContent() {
-    const defaultArticles = window.VOLTLAB_DEFAULT_ARTICLES || [];
-    const defaultProjects = window.VOLTLAB_DEFAULT_PROJECTS || [];
+  function notify(message) {
+    const region = $("toast-region");
+    if (!region) return;
 
-    const savedArticles = readStorage(STORAGE.articles, null);
-    const savedProjects = readStorage(STORAGE.projects, null);
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = message;
+    region.appendChild(toast);
 
-    state.articles = Array.isArray(savedArticles)
-      ? savedArticles
-      : defaultArticles;
-
-    state.projects = Array.isArray(savedProjects)
-      ? savedProjects
-      : defaultProjects;
-
-    if (!Array.isArray(savedArticles)) {
-      writeStorage(STORAGE.articles, state.articles);
-    }
-
-    if (!Array.isArray(savedProjects)) {
-      writeStorage(STORAGE.projects, state.projects);
-    }
+    window.setTimeout(() => toast.remove(), 3200);
   }
 
-  // --------------------------------------------------
-  // KATEGORIE
-  // --------------------------------------------------
-
-  function createCategoryButtons(containerId, type) {
-    const container = $(containerId);
-    if (!container) return;
-
-    const categories = getCategories();
-
-    container.innerHTML = `
-      <button class="filter-button active" data-category="all">
-        Vše
-      </button>
-      ${categories.map(category => `
-        <button class="filter-button"
-          data-category="${escapeHTML(category.id)}">
-          ${escapeHTML(category.icon || "")}
-          ${escapeHTML(category.name)}
-        </button>
-      `).join("")}
-    `;
-
-    container.addEventListener("click", event => {
-      const button = event.target.closest("[data-category]");
-      if (!button) return;
-
-      if (type === "article") {
-        state.articleCategory = button.dataset.category;
-        renderArticles();
-      } else {
-        state.projectCategory = button.dataset.category;
-        renderProjects();
-      }
-
-      container.querySelectorAll(".filter-button").forEach(item => {
-        item.classList.toggle("active", item === button);
-      });
-    });
-  }
-
-  function renderCategoryCards() {
+  function renderCategories() {
     const container = $("category-grid");
     if (!container) return;
 
-    container.innerHTML = getCategories().map(category => `
-      <button class="category-card"
-        data-open-category="${escapeHTML(category.id)}">
-        <span class="category-icon">
-          ${escapeHTML(category.icon || "⚡")}
-        </span>
-        <span class="category-name">
-          ${escapeHTML(category.name)}
-        </span>
-        <span class="category-description">
-          ${escapeHTML(category.description || "")}
-        </span>
+    container.innerHTML = config.categories.map(category => `
+      <button class="category-card" type="button" data-category="${escapeHTML(category.id)}">
+        <span class="category-arrow">↗</span>
+        <span class="category-icon">${escapeHTML(category.icon)}</span>
+        <h3>${escapeHTML(category.name)}</h3>
+        <p>${escapeHTML(category.description)}</p>
       </button>
     `).join("");
 
-    container.addEventListener("click", event => {
-      const card = event.target.closest("[data-open-category]");
-      if (!card) return;
-
-      const category = card.dataset.openCategory;
-
-      state.articleCategory = category;
-      state.projectCategory = category;
-
-      updateFilterButtons("article-filters", category);
-      updateFilterButtons("project-filters", category);
-
-      renderArticles();
-      renderProjects();
-
-      $("articles-list")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+    container.querySelectorAll("[data-category]").forEach(button => {
+      button.addEventListener("click", () => {
+        const category = button.dataset.category;
+        articleCategory = category;
+        projectCategory = category;
+        renderFilters();
+        renderArticles();
+        renderProjects();
+        $("articles").scrollIntoView({ behavior: "smooth" });
       });
     });
   }
 
-  function updateFilterButtons(containerId, category) {
-    const container = $(containerId);
-    if (!container) return;
+  function renderFilters() {
+    const articleFilters = $("article-filters");
+    const projectFilters = $("project-filters");
 
-    container.querySelectorAll("[data-category]").forEach(button => {
-      button.classList.toggle(
-        "active",
-        button.dataset.category === category
-      );
-    });
+    if (articleFilters) {
+      articleFilters.innerHTML = `
+        <button class="filter-button ${articleCategory === "all" ? "active" : ""}" data-category="all">Vše</button>
+        ${config.categories.map(category => `
+          <button class="filter-button ${articleCategory === category.id ? "active" : ""}" data-category="${escapeHTML(category.id)}">${escapeHTML(category.name)}</button>
+        `).join("")}
+      `;
+      articleFilters.querySelectorAll("[data-category]").forEach(button => {
+        button.addEventListener("click", () => {
+          articleCategory = button.dataset.category;
+          renderFilters();
+          renderArticles();
+        });
+      });
+    }
+
+    if (projectFilters) {
+      projectFilters.innerHTML = `
+        <button class="filter-button ${projectCategory === "all" ? "active" : ""}" data-category="all">Vše</button>
+        ${config.categories.map(category => `
+          <button class="filter-button ${projectCategory === category.id ? "active" : ""}" data-category="${escapeHTML(category.id)}">${escapeHTML(category.name)}</button>
+        `).join("")}
+      `;
+      projectFilters.querySelectorAll("[data-category]").forEach(button => {
+        button.addEventListener("click", () => {
+          projectCategory = button.dataset.category;
+          renderFilters();
+          renderProjects();
+        });
+      });
+    }
   }
-
-  // --------------------------------------------------
-  // ČLÁNKY
-  // --------------------------------------------------
 
   function renderArticles() {
     const container = $("articles-list");
     const empty = $("articles-empty");
-
     if (!container) return;
 
-    const search = state.articleSearch.toLowerCase().trim();
+    const search = ($("article-search")?.value || "").trim().toLowerCase();
 
-    const filtered = state.articles.filter(article => {
-      const categoryMatch =
-        state.articleCategory === "all" ||
-        article.category === state.articleCategory;
-
-      const text = [
-        article.title,
-        article.excerpt,
-        article.content,
-        ...(article.tags || [])
-      ].join(" ").toLowerCase();
-
+    const filtered = articles.filter(article => {
+      const categoryMatch = articleCategory === "all" || article.category === articleCategory;
+      const text = `${article.title} ${article.excerpt} ${(article.tags || []).join(" ")}`.toLowerCase();
       return categoryMatch && text.includes(search);
     });
 
     container.innerHTML = filtered.map(article => `
       <article class="content-card">
-        <div class="content-card-icon">
-          ${escapeHTML(article.icon || "📘")}
+        <div class="card-meta">
+          <span class="card-category">${escapeHTML(categoryName(article.category))}</span>
+          <span>${escapeHTML(article.readTime || "Článek")}</span>
         </div>
-
-        <div class="content-card-meta">
-          ${escapeHTML(categoryName(article.category))}
-          ${article.readTime
-            ? ` · ${escapeHTML(article.readTime)}`
-            : ""}
-        </div>
-
+        <span class="card-icon">${escapeHTML(article.icon || "⌁")}</span>
         <h3>${escapeHTML(article.title)}</h3>
-
-        <p>${escapeHTML(article.excerpt || "")}</p>
-
-        <button class="text-button"
-          data-open-article="${escapeHTML(article.id)}">
-          Přečíst článek →
-        </button>
+        <p>${escapeHTML(article.excerpt)}</p>
+        <div class="card-bottom">
+          <span>KNOWLEDGE BASE</span>
+          <button class="card-open" type="button" data-open-article="${escapeHTML(article.id)}" aria-label="Otevřít článek">↗</button>
+        </div>
       </article>
     `).join("");
 
-    if (empty) {
-      empty.hidden = filtered.length > 0;
-    }
-  }
+    if (empty) empty.hidden = filtered.length !== 0;
 
-  // --------------------------------------------------
-  // PROJEKTY
-  // --------------------------------------------------
+    container.querySelectorAll("[data-open-article]").forEach(button => {
+      button.addEventListener("click", () => openArticle(button.dataset.openArticle));
+    });
+
+    container.querySelectorAll(".content-card").forEach((card, index) => {
+      card.addEventListener("click", event => {
+        if (event.target.closest("button")) return;
+        const article = filtered[index];
+        if (article) openArticle(article.id);
+      });
+    });
+  }
 
   function renderProjects() {
     const container = $("projects-list");
     const empty = $("projects-empty");
-
     if (!container) return;
 
-    const search = state.projectSearch.toLowerCase().trim();
+    const search = ($("project-search")?.value || "").trim().toLowerCase();
 
-    const filtered = state.projects.filter(project => {
-      const categoryMatch =
-        state.projectCategory === "all" ||
-        project.category === state.projectCategory;
-
-      const text = [
-        project.title,
-        project.description,
-        project.difficulty,
-        ...(project.components || []),
-        ...(project.tags || [])
-      ].join(" ").toLowerCase();
-
+    const filtered = projects.filter(project => {
+      const categoryMatch = projectCategory === "all" || project.category === projectCategory;
+      const text = `${project.title} ${project.description} ${project.difficulty || ""}`.toLowerCase();
       return categoryMatch && text.includes(search);
     });
 
     container.innerHTML = filtered.map(project => `
       <article class="content-card">
-        <div class="content-card-icon">
-          ${escapeHTML(project.icon || "🔧")}
+        <div class="card-meta">
+          <span class="card-category">${escapeHTML(categoryName(project.category))}</span>
+          <span>${escapeHTML(project.difficulty || "Projekt")}</span>
         </div>
-
-        <div class="content-card-meta">
-          ${escapeHTML(categoryName(project.category))}
-          ${project.difficulty
-            ? ` · ${escapeHTML(project.difficulty)}`
-            : ""}
-        </div>
-
+        <span class="card-icon">${escapeHTML(project.icon || "⌁")}</span>
         <h3>${escapeHTML(project.title)}</h3>
-
-        <p>${escapeHTML(project.description || "")}</p>
-
-        <button class="text-button"
-          data-open-project="${escapeHTML(project.id)}">
-          Zobrazit projekt →
-        </button>
+        <p>${escapeHTML(project.description)}</p>
+        <div class="card-bottom">
+          <span>${escapeHTML(project.time || "DIY PROJECT")}</span>
+          <button class="card-open" type="button" data-open-project="${escapeHTML(project.id)}" aria-label="Otevřít projekt">↗</button>
+        </div>
       </article>
     `).join("");
 
-    if (empty) {
-      empty.hidden = filtered.length > 0;
-    }
+    if (empty) empty.hidden = filtered.length !== 0;
+
+    container.querySelectorAll("[data-open-project]").forEach(button => {
+      button.addEventListener("click", () => openProject(button.dataset.openProject));
+    });
+
+    container.querySelectorAll(".content-card").forEach((card, index) => {
+      card.addEventListener("click", event => {
+        if (event.target.closest("button")) return;
+        const project = filtered[index];
+        if (project) openProject(project.id);
+      });
+    });
   }
 
-  // --------------------------------------------------
-  // DETAIL ČLÁNKU A PROJEKTU
-  // --------------------------------------------------
-
-  function openDialog(content) {
+  function openDialog(html) {
     const dialog = $("content-dialog");
-    const target = $("dialog-content");
+    const content = $("dialog-content");
+    if (!dialog || !content) return;
 
-    if (!dialog || !target) return;
+    content.innerHTML = html;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
 
-    target.innerHTML = content;
-
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
-    } else {
-      dialog.setAttribute("open", "");
-    }
-  }
-
-  function closeDialog() {
-    const dialog = $("content-dialog");
-    if (!dialog) return;
-
-    if (typeof dialog.close === "function") {
-      dialog.close();
-    } else {
-      dialog.removeAttribute("open");
-    }
-  }
-
-  function openArticle(id) {
-    const article = state.articles.find(item => item.id === id);
-    if (!article) return;
-
-    openDialog(`
-      <div class="dialog-meta">
-        ${escapeHTML(categoryName(article.category))}
-        ${article.readTime
-          ? ` · ${escapeHTML(article.readTime)}`
-          : ""}
-      </div>
-
-      <h2>${escapeHTML(article.icon || "📘")}
-        ${escapeHTML(article.title)}</h2>
-
-      <p class="dialog-excerpt">
-        ${escapeHTML(article.excerpt || "")}
-      </p>
-
-      <div class="dialog-body">
-        ${escapeHTML(article.content || "")
-          .split(/\n{2,}/)
-          .map(paragraph => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
-          .join("")}
-      </div>
-    `);
-  }
-
-  function openProject(id) {
-    const project = state.projects.find(item => item.id === id);
-    if (!project) return;
-
-    const list = (items) => `
-      <ul>
-        ${(items || []).map(item =>
-          `<li>${escapeHTML(item)}</li>`
-        ).join("")}
-      </ul>
-    `;
-
-    openDialog(`
-      <div class="dialog-meta">
-        ${escapeHTML(categoryName(project.category))}
-        ${project.difficulty
-          ? ` · ${escapeHTML(project.difficulty)}`
-          : ""}
-        ${project.time
-          ? ` · ${escapeHTML(project.time)}`
-          : ""}
-      </div>
-
-      <h2>${escapeHTML(project.icon || "🔧")}
-        ${escapeHTML(project.title)}</h2>
-
-      <p>${escapeHTML(project.description || "")}</p>
-
-      <h3>Potřebné součástky</h3>
-      ${list(project.components)}
-
-      <h3>Postup</h3>
-      ${list(project.steps)}
-
-      ${project.code ? `
-        <h3>Ukázkový kód</h3>
-        <pre><code>${escapeHTML(project.code)}</code></pre>
-        <button class="button secondary"
-          id="copy-project-code">
-          Kopírovat kód
-        </button>
-      ` : ""}
-
-      ${project.note ? `
-        <div class="safety-note">
-          ${escapeHTML(project.note)}
-        </div>
-      ` : ""}
-    `);
-
-    const copyButton = $("copy-project-code");
-
-    if (copyButton && project.code) {
-      copyButton.addEventListener("click", async () => {
+    content.querySelectorAll("[data-copy-code]").forEach(button => {
+      button.addEventListener("click", async () => {
+        const code = content.querySelector("pre")?.textContent || "";
         try {
-          await navigator.clipboard.writeText(project.code);
-          notify("Kód byl zkopírován.");
+          await navigator.clipboard.writeText(code);
+          notify("Kód zkopírován.");
         } catch {
           notify("Kopírování není v tomto prohlížeči dostupné.");
         }
       });
-    }
+    });
+  }
+
+  function openArticle(id) {
+    const article = articles.find(item => item.id === id);
+    if (!article) return;
+
+    const paragraphs = String(article.content || "")
+      .split(/\n\s*\n/)
+      .map(paragraph => `<p>${escapeHTML(paragraph).replace(/\n/g, "<br>")}</p>`)
+      .join("");
+
+    openDialog(`
+      <div class="eyebrow">${escapeHTML(categoryName(article.category))} / ARTICLE</div>
+      <h2>${escapeHTML(article.title)}</h2>
+      <p>${escapeHTML(article.excerpt)}</p>
+      <div class="dialog-article">${paragraphs}</div>
+    `);
+  }
+
+  function openProject(id) {
+    const project = projects.find(item => item.id === id);
+    if (!project) return;
+
+    const components = (project.components || []).map(item => `<li>${escapeHTML(item)}</li>`).join("");
+    const steps = (project.steps || []).map(item => `<li>${escapeHTML(item)}</li>`).join("");
+
+    openDialog(`
+      <div class="eyebrow">${escapeHTML(categoryName(project.category))} / PROJECT</div>
+      <h2>${escapeHTML(project.title)}</h2>
+      <p>${escapeHTML(project.description)}</p>
+      <h3>Potřebné komponenty</h3>
+      <ul>${components}</ul>
+      <h3>Postup</h3>
+      <ol>${steps}</ol>
+      ${project.code ? `
+        <h3>Ukázkový kód</h3>
+        <div class="dialog-code">
+          <button class="copy-code" type="button" data-copy-code>Kopírovat kód</button>
+          <pre>${escapeHTML(project.code)}</pre>
+        </div>
+      ` : ""}
+      ${project.note ? `<h3>Poznámka</h3><p>${escapeHTML(project.note)}</p>` : ""}
+    `);
   }
 
   function initDialog() {
-    $("dialog-close")?.addEventListener("click", closeDialog);
+    const dialog = $("content-dialog");
+    const close = $("dialog-close");
+    if (!dialog || !close) return;
 
-    $("content-dialog")?.addEventListener("click", event => {
-      if (event.target === $("content-dialog")) {
-        closeDialog();
-      }
+    close.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", event => {
+      if (event.target === dialog) dialog.close();
     });
-
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") closeDialog();
-    });
-
-    $("articles-list")?.addEventListener("click", event => {
-      const button = event.target.closest("[data-open-article]");
-      if (button) openArticle(button.dataset.openArticle);
-    });
-
-    $("projects-list")?.addEventListener("click", event => {
-      const button = event.target.closest("[data-open-project]");
-      if (button) openProject(button.dataset.openProject);
-    });
-  }
-
-  // --------------------------------------------------
-  // VYHLEDÁVÁNÍ
-  // --------------------------------------------------
-
-  function initSearch() {
-    $("article-search")?.addEventListener("input", event => {
-      state.articleSearch = event.target.value;
-      renderArticles();
-    });
-
-    $("project-search")?.addEventListener("input", event => {
-      state.projectSearch = event.target.value;
-      renderProjects();
-    });
-  }
-
-  // --------------------------------------------------
-  // SVĚTLÝ A TMAVÝ REŽIM
-  // --------------------------------------------------
-
-  function applyTheme(theme) {
-    const selected = theme === "light" ? "light" : "dark";
-
-    document.documentElement.dataset.theme = selected;
-
-    try {
-      localStorage.setItem(STORAGE.theme || "voltlab_theme", selected);
-    } catch (error) {
-      console.warn("VoltLab: Motiv se nepodařilo uložit.", error);
-    }
-
-    const icon = $("theme-icon");
-    const button = $("theme-toggle");
-
-    if (icon) {
-      icon.textContent = selected === "dark" ? "☀️" : "🌙";
-    }
-
-    if (button) {
-      button.setAttribute(
-        "aria-label",
-        selected === "dark"
-          ? "Přepnout na světlý režim"
-          : "Přepnout na tmavý režim"
-      );
-    }
   }
 
   function initTheme() {
-    let savedTheme = null;
+    const button = $("theme-toggle");
+    const icon = $("theme-icon");
+    if (!button) return;
 
-    try {
-      savedTheme = localStorage.getItem(
-        STORAGE.theme || "voltlab_theme"
+    let theme = localStorage.getItem(storage.theme) || config.appearance.defaultTheme || "dark";
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = theme;
+      if (icon) icon.textContent = theme === "dark" ? "☼" : "☾";
+      document.querySelector('meta[name="theme-color"]')?.setAttribute(
+        "content",
+        theme === "dark" ? "#0b0f0e" : "#f3f6f2"
       );
-    } catch {
-      savedTheme = null;
     }
 
-    applyTheme(
-      savedTheme ||
-      CONFIG.appearance?.defaultTheme ||
-      "dark"
-    );
-
-    $("theme-toggle")?.addEventListener("click", () => {
-      const current = document.documentElement.dataset.theme;
-      applyTheme(current === "dark" ? "light" : "dark");
+    button.addEventListener("click", () => {
+      theme = theme === "dark" ? "light" : "dark";
+      localStorage.setItem(storage.theme, theme);
+      applyTheme();
     });
-  }
 
-  // --------------------------------------------------
-  // MOBILNÍ MENU
-  // --------------------------------------------------
+    applyTheme();
+  }
 
   function initMobileMenu() {
     const button = $("mobile-menu-toggle");
     const nav = $("main-nav");
-
     if (!button || !nav) return;
 
     button.addEventListener("click", () => {
-      const isOpen = nav.classList.toggle("is-open");
-
-      button.setAttribute("aria-expanded", String(isOpen));
+      const open = nav.classList.toggle("is-open");
+      button.setAttribute("aria-expanded", String(open));
     });
 
     nav.querySelectorAll("a").forEach(link => {
@@ -537,81 +333,76 @@
     });
   }
 
-  // --------------------------------------------------
-  // ROK V PATIČCE
-  // --------------------------------------------------
+  function initNavigationHighlight() {
+    const links = [...document.querySelectorAll(".nav-link")];
+    const sections = links.map(link => document.querySelector(link.getAttribute("href"))).filter(Boolean);
 
-  function initYear() {
-    const year = $("current-year");
-    if (year) year.textContent = new Date().getFullYear();
+    if (!("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        links.forEach(link => {
+          link.classList.toggle("active", link.getAttribute("href") === `#${entry.target.id}`);
+        });
+      });
+    }, { rootMargin: "-35% 0px -55% 0px" });
+
+    sections.forEach(section => observer.observe(section));
   }
 
-  // --------------------------------------------------
-  // VEŘEJNÉ API PRO ADMINISTRACI
-  // --------------------------------------------------
+  function initSearch() {
+    $("article-search")?.addEventListener("input", renderArticles);
+    $("project-search")?.addEventListener("input", renderProjects);
+  }
+
+  function init() {
+    $("current-year").textContent = new Date().getFullYear();
+
+    renderCategories();
+    renderFilters();
+    renderArticles();
+    renderProjects();
+
+    initDialog();
+    initTheme();
+    initMobileMenu();
+    initNavigationHighlight();
+    initSearch();
+  }
 
   window.VoltLab = {
-    get articles() {
-      return state.articles;
-    },
-
-    get projects() {
-      return state.projects;
-    },
+    get articles() { return articles; },
+    get projects() { return projects; },
 
     saveArticles(items) {
-      state.articles = items;
-      writeStorage(STORAGE.articles, items);
+      articles = items;
+      writeStorage(storage.articles, articles);
       renderArticles();
     },
 
     saveProjects(items) {
-      state.projects = items;
-      writeStorage(STORAGE.projects, items);
+      projects = items;
+      writeStorage(storage.projects, projects);
       renderProjects();
     },
 
     resetContent() {
-      state.articles = window.VOLTLAB_DEFAULT_ARTICLES || [];
-      state.projects = window.VOLTLAB_DEFAULT_PROJECTS || [];
-
-      writeStorage(STORAGE.articles, state.articles);
-      writeStorage(STORAGE.projects, state.projects);
-
+      articles = window.VOLTLAB_DEFAULT_ARTICLES || [];
+      projects = window.VOLTLAB_DEFAULT_PROJECTS || [];
+      localStorage.removeItem(storage.articles);
+      localStorage.removeItem(storage.projects);
       renderArticles();
       renderProjects();
-
-      notify("Obsah byl obnoven do výchozího stavu.");
+      notify("Výchozí obsah byl obnoven.");
     },
 
     notify
   };
-
-  // --------------------------------------------------
-  // START
-  // --------------------------------------------------
-
-  function init() {
-    initializeContent();
-
-    initTheme();
-    initMobileMenu();
-    initDialog();
-    initSearch();
-    initYear();
-
-    createCategoryButtons("article-filters", "article");
-    createCategoryButtons("project-filters", "project");
-
-    renderCategoryCards();
-    renderArticles();
-    renderProjects();
-  }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
   }
-
 })();
