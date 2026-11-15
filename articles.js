@@ -2,27 +2,26 @@
 window.VOLTLAB_DEFAULT_ARTICLES = [
   {
     id: "arduino-start",
-    title: "Arduino: první kroky",
+    title: "Arduino: První kroky",
     category: "arduino",
     icon: "⌘",
-    readTime: "5 min",
-    excerpt: "Seznam se s deskou Arduino, prostředím IDE a svým prvním programem.",
-    content: `Arduino je platforma pro jednoduché prototypování elektroniky. Umožňuje propojit programování s reálným světem pomocí vstupů a výstupů.
-
-Co budeš potřebovat:
-- Arduino Uno nebo kompatibilní desku
-- USB kabel
-- Počítač s Arduino IDE
-- LED diodu a rezistor 220–330 Ω
-
-První program:
-Otevři Arduino IDE, vyber správnou desku a port. Vytvoř nový projekt a vlož ukázkový kód Blink.
-
-Jak to funguje:
-Funkce setup() se provede jednou po spuštění. Nastaví pin 13 jako výstup. Funkce loop() se potom opakuje stále dokola a střídavě zapíná a vypíná LED.
-
-Tip:
-Začni jednoduchými pokusy. Postupně přidávej tlačítka, senzory a další komponenty.`,
+    readTime: "6 min",
+    excerpt: "Seznam se s deskou Arduino a vytvoř svůj první elektronický projekt.",
+    content: `<h3>Co je Arduino?</h3>
+<p>Arduino je otevřená platforma pro tvorbu elektronických projektů. Umožňuje jednoduše ovládat LED, motory, senzory a mnoho dalších součástek.</p>
+<h3>Co budeš potřebovat?</h3>
+<ul><li>Arduino Uno nebo kompatibilní desku</li><li>USB kabel</li><li>Počítač s Arduino IDE</li><li>LED a rezistor 220 Ω</li></ul>
+<h3>První program</h3>
+<pre><code>void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(1000);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(1000);
+}</code></pre>
+<p>Program rozbliká vestavěnou LED. Gratuluji – právě jsi vytvořil svůj první Arduino program!</p>`,
     tags: ["Arduino", "začátečník", "programování"]
   },
   {
@@ -30,104 +29,61 @@ Začni jednoduchými pokusy. Postupně přidávej tlačítka, senzory a další 
     title: "Ohmův zákon jednoduše",
     category: "electronics",
     icon: "Ω",
-    readTime: "4 min",
-    excerpt: "Napětí, proud a odpor. Tři veličiny, které tvoří základ elektrických obvodů.",
-    content: `Ohmův zákon popisuje vztah mezi napětím, proudem a odporem.
-
-Základní vzorec:
-U = R × I
-
-Kde:
-- U je napětí ve voltech (V)
-- R je odpor v ohmech (Ω)
-- I je proud v ampérech (A)
-
-Z něj získáš také:
-I = U / R
-R = U / I
-
-Příklad:
-Máš zdroj 12 V a rezistor 220 Ω. Proud vypočítáš jako 12 / 220 = 0,0545 A, tedy přibližně 54,5 mA.
-
-Důležité:
-Vždy používej správné jednotky. Před dosazením do vzorce převeď miliampéry na ampéry a kiloohmy na ohmy.`,
+    readTime: "5 min",
+    excerpt: "Pochop vztah mezi napětím, proudem a odporem.",
+    content: `<h3>Základ elektroniky</h3>
+<p>Ohmův zákon popisuje vztah mezi elektrickým napětím, proudem a odporem.</p>
+<p><strong>U = R × I</strong></p>
+<ul><li>U – napětí ve voltech (V)</li><li>R – odpor v ohmech (Ω)</li><li>I – proud v ampérech (A)</li></ul>
+<h3>Příklad</h3>
+<p>Rezistorem 100 Ω protéká proud 0,02 A. Napětí je U = 100 × 0,02 = 2 V.</p>
+<p>Vyzkoušej si výpočty v kalkulačce Ohmova zákona na VoltLabu.</p>`,
     tags: ["elektronika", "výpočty", "základy"]
   },
   {
     id: "led-resistor",
-    title: "Jak zapojit LED diodu",
+    title: "Jak vybrat rezistor pro LED",
     category: "electronics",
     icon: "◉",
     readTime: "4 min",
-    excerpt: "Proč LED potřebuje rezistor a jak správně vybrat jeho hodnotu.",
-    content: `LED je polovodičová součástka, která při průchodu proudu vyzařuje světlo. Na rozdíl od běžné žárovky je citlivá na překročení maximálního proudu.
-
-Proč potřebuje rezistor:
-Rezistor omezuje proud procházející LED. Bez něj může dojít k jejímu poškození.
-
-Výpočet:
-R = (Uzdroje − Uled) / I
-
-Příklad:
-Napájení 5 V, červená LED s úbytkem 2 V a proudem 20 mA:
-R = (5 − 2) / 0,02 = 150 Ω.
-
-V praxi můžeš použít nejbližší vyšší běžnou hodnotu, například 180 Ω.
-
-Pozor:
-Ověř maximální proud LED a výkonovou ztrátu rezistoru. Při vyšších proudech je nutné počítat také s jeho zahříváním.`,
+    excerpt: "Zjisti, proč LED potřebuje rezistor a jak vypočítat jeho hodnotu.",
+    content: `<h3>Proč potřebuje LED rezistor?</h3>
+<p>LED je citlivá na proud. Bez omezení proudu může dojít k jejímu poškození.</p>
+<h3>Výpočet</h3>
+<p><strong>R = (U napájení − U LED) / I LED</strong></p>
+<p>Příklad: napájení 5 V, LED s úbytkem 2 V a proudem 20 mA:</p>
+<p>R = (5 − 2) / 0,02 = 150 Ω.</p>
+<p>V praxi vyber vhodnou standardní hodnotu rezistoru a ověř jeho výkonové zatížení.</p>`,
     tags: ["LED", "rezistor", "elektronika"]
   },
   {
     id: "robot-first",
-    title: "Jak funguje jednoduchý robot",
+    title: "Tvůj první robot",
     category: "robotics",
-    icon: "◎",
-    readTime: "6 min",
-    excerpt: "Z čeho se skládá malý robot a jak spolupracují jeho jednotlivé části.",
-    content: `Jednoduchý mobilní robot může být postavený na několika základních částech.
-
-Řídicí jednotka:
-Mikrokontrolér zpracovává informace a rozhoduje, co robot udělá.
-
-Senzory:
-Senzory mohou měřit vzdálenost, světlo nebo třeba čáru na podlaze.
-
-Motory:
-Motory vytvářejí pohyb. U malého robota se často používají stejnosměrné převodové motory.
-
-Ovládání:
-Motorový driver umožňuje řídit směr a rychlost motorů.
-
-Začni jednoduše:
-Nejdříve vyzkoušej pohyb dopředu a dozadu. Potom přidej zatáčení a nakonec senzory.`,
-    tags: ["robotika", "motory", "začátečník"]
+    icon: "◈",
+    readTime: "7 min",
+    excerpt: "Základní přehled součástek pro jednoduchého mobilního robota.",
+    content: `<h3>Z čeho se robot skládá?</h3>
+<p>Jednoduchý robot může obsahovat řídicí desku, dva motory, motorový driver, baterii a podvozek.</p>
+<h3>Řídicí jednotka</h3>
+<p>Arduino může číst senzory a ovládat motory podle naprogramovaných pravidel.</p>
+<h3>První úkol</h3>
+<p>Nejprve zkus robota rozjet dopředu a dozadu. Potom přidej zatáčení a nakonec senzor překážek.</p>`,
+    tags: ["robot", "motory", "Arduino"]
   },
   {
     id: "3d-basics",
     title: "Základy 3D tisku",
     category: "3d-printing",
-    icon: "▦",
-    readTime: "5 min",
-    excerpt: "Od 3D modelu k hotovému výtisku. Co znamenají základní pojmy?",
-    content: `3D tisk umožňuje vyrábět fyzické objekty z digitálních modelů.
-
-Jak proces probíhá:
-1. Vytvoříš nebo stáhneš 3D model.
-2. Otevřeš ho v programu slicer.
-3. Nastavíš materiál, teplotu, rychlost a další parametry.
-4. Slicer vytvoří G-code.
-5. Tiskárna podle něj vytiskne model po jednotlivých vrstvách.
-
-Základní pojmy:
-- PLA: oblíbený materiál pro začátečníky.
-- PETG: odolnější materiál s jinými tiskovými vlastnostmi.
-- Infill: vnitřní výplň modelu.
-- Layer height: výška jedné vrstvy.
-- Supports: podpěry pro převislé části.
-
-Tip:
-Začni malými modely a měň vždy jen několik parametrů, abys poznal jejich vliv na výsledek.`,
+    icon: "▧",
+    readTime: "6 min",
+    excerpt: "Jak vzniká 3D tištěný díl a co potřebuješ pro první tisk.",
+    content: `<h3>Od modelu k výrobku</h3>
+<p>3D tisk umožňuje vyrábět prostorové objekty postupným ukládáním materiálu ve vrstvách.</p>
+<h3>Co potřebuješ?</h3>
+<ul><li>3D tiskárnu</li><li>Filament, například PLA</li><li>3D model</li><li>Slicer pro přípravu tisku</li></ul>
+<h3>První model</h3>
+<p>Začni jednoduchým držákem nebo krabičkou. Naučíš se nastavit teplotu, výšku vrstvy a podpěry.</p>`,
     tags: ["3D tisk", "PLA", "modelování"]
   },
   {
@@ -135,55 +91,32 @@ Začni malými modely a měň vždy jen několik parametrů, abys poznal jejich 
     title: "ESP32 a chytrá domácnost",
     category: "smart-home",
     icon: "⌂",
-    readTime: "7 min",
-    excerpt: "Jak může ESP32 ovládat zařízení a komunikovat přes Wi-Fi.",
-    content: `ESP32 je výkonný mikrokontrolér s integrovanou Wi-Fi a Bluetooth konektivitou. Hodí se pro různé projekty chytré domácnosti.
-
-Co můžeš vytvořit:
-- Teplotní monitor.
-- Wi-Fi ovládání LED osvětlení.
-- Jednoduchý webový server.
-- Monitorování senzorů.
-
-Jak začít:
-Připoj ESP32 k počítači, nainstaluj podporu desek v Arduino IDE a nahraj jednoduchý testovací program.
-
-Komunikace:
-ESP32 se může připojit k domácí Wi-Fi síti a poskytovat data dalším zařízením.
-
-Bezpečnost:
-Nedávej veřejně přístupné zařízení bez zabezpečení. Nepřipojuj síťové napětí přímo na GPIO piny.`,
-    tags: ["ESP32", "Wi-Fi", "Smart Home"]
+    readTime: "8 min",
+    excerpt: "Prozkoumej možnosti Wi-Fi mikrokontroléru ESP32.",
+    content: `<h3>Co je ESP32?</h3>
+<p>ESP32 je výkonný mikrokontrolér s integrovanou Wi-Fi a Bluetooth konektivitou.</p>
+<h3>Možnosti využití</h3>
+<ul><li>Měření teploty a vlhkosti</li><li>Ovládání světel</li><li>Webové rozhraní</li><li>Monitoring domácnosti</li></ul>
+<p>ESP32 je skvělý základ pro vlastní IoT projekty.</p>`,
+    tags: ["ESP32", "Wi-Fi", "IoT"]
   },
   {
     id: "programming-start",
-    title: "Programování od nuly",
+    title: "Jak začít s programováním",
     category: "programming",
     icon: "</>",
     readTime: "5 min",
-    excerpt: "Proměnné, podmínky a cykly – základní stavební kameny programování.",
-    content: `Programování je způsob, jak popsat počítači posloupnost kroků, které má vykonat.
-
-Proměnné:
-Ukládají hodnoty, se kterými může program pracovat.
-
-Podmínky:
-Umožňují programu rozhodovat se podle situace.
-
-Cykly:
-Opakují určitou část kódu.
-
-Příklad v JavaScriptu:
-const teplota = 24;
-
-if (teplota > 25) {
-  console.log("Je teplo");
+    excerpt: "Seznam se s proměnnými, podmínkami a cykly.",
+    content: `<h3>Programování krok za krokem</h3>
+<p>Programování znamená popsat počítači nebo mikrokontroléru, co má udělat.</p>
+<h3>Základní stavební prvky</h3>
+<ul><li>Proměnné ukládají hodnoty.</li><li>Podmínky rozhodují podle situace.</li><li>Cykly opakují příkazy.</li><li>Funkce rozdělují program na části.</li></ul>
+<pre><code>let teplota = 25;
+if (teplota > 30) {
+  console.log("Je horko");
 } else {
   console.log("Teplota je v normě");
-}
-
-Jak se učit:
-Piš malé programy, zkoušej změny a neboj se chyb. Právě jejich hledání je důležitou součástí programování.`,
-    tags: ["programování", "JavaScript", "začátečník"]
+}</code></pre>`,
+    tags: ["programování", "základy", "kód"]
   }
 ];
