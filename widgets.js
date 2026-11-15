@@ -5,124 +5,88 @@
   const $ = (id) => document.getElementById(id);
 
   function number(id) {
-    const element = $(id);
-    if (!element || element.value.trim() === "") return null;
-
-    const value = Number(element.value);
+    const el = $(id);
+    if (!el || el.value.trim() === "") return null;
+    const value = Number(el.value);
     return Number.isFinite(value) ? value : null;
   }
 
-  function output(id, message, error = false) {
-    const element = $(id);
-    if (!element) return;
-
-    element.textContent = message;
-    element.classList.toggle("is-error", error);
-    element.classList.add("has-result");
+  function showResult(id, message) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add("has-result");
   }
 
-  function format(value, digits = 5) {
-    if (!Number.isFinite(value)) return "—";
-
-    return Number(value.toPrecision(digits)).toLocaleString("cs-CZ", {
-      maximumFractionDigits: digits
-    });
+  function format(value, digits = 4) {
+    return Number(value.toFixed(digits)).toLocaleString("cs-CZ");
   }
 
   function formatAuto(value, units) {
-    if (!Number.isFinite(value)) return "—";
-
     const absolute = Math.abs(value);
-
     for (let i = units.length - 1; i >= 0; i--) {
       if (absolute >= units[i].factor) {
-        return `${format(value / units[i].factor)} ${units[i].name}`;
+        return `${format(value / units[i].factor)} ${units[i].unit}`;
       }
     }
-
-    return `${format(value / units[0].factor)} ${units[0].name}`;
+    return `${format(value / units[0].factor)} ${units[0].unit}`;
   }
-
-  function positive(value) {
-    return value !== null && value > 0;
-  }
-
-  // --------------------------------------------------
-  // OHMŮV ZÁKON
-  // --------------------------------------------------
 
   function initOhm() {
     const button = $("ohm-calculate");
     if (!button) return;
 
     button.addEventListener("click", () => {
-      const rawU = number("ohm-voltage");
-      const rawI = number("ohm-current");
-      const rawR = number("ohm-resistance");
+      const raw = [
+        number("ohm-voltage"),
+        number("ohm-current"),
+        number("ohm-resistance")
+      ];
 
-      const U = rawU === null ? null :
-        rawU * Number($("ohm-voltage-unit").value);
+      const filled = raw.filter(v => v !== null).length;
 
-      const I = rawI === null ? null :
-        rawI * Number($("ohm-current-unit").value);
-
-      const R = rawR === null ? null :
-        rawR * Number($("ohm-resistance-unit").value);
-
-      const values = [U, I, R];
-      const known = values.filter(v => v !== null);
-
-      if (known.length !== 2) {
-        output(
-          "ohm-result",
-          "Vyplň přesně dvě hodnoty. Třetí nech prázdnou.",
-          true
-        );
+      if (filled !== 2 || raw.some(v => v !== null && v < 0)) {
+        showResult("ohm-result", "Vyplň přesně dvě nezáporné hodnoty.");
         return;
       }
 
-      if (known.some(v => !positive(v))) {
-        output(
-          "ohm-result",
-          "Hodnoty musí být větší než nula.",
-          true
-        );
+      const U = raw[0] === null ? null : raw[0] * Number($("ohm-voltage-unit").value);
+      const I = raw[1] === null ? null : raw[1] * Number($("ohm-current-unit").value);
+      const R = raw[2] === null ? null : raw[2] * Number($("ohm-resistance-unit").value);
+
+      if (U === null && I === 0 || U === null && R === 0 || I === null && R === 0) {
+        showResult("ohm-result", "Výpočet nelze provést s nulovou hodnotou ve jmenovateli.");
         return;
       }
 
       let result;
-      let message;
 
       if (U === null) {
-        result = I * R;
-        message = `Napětí: ${formatAuto(result, [
-          { factor: 0.001, name: "mV" },
-          { factor: 1, name: "V" },
-          { factor: 1000, name: "kV" }
+        const voltage = I * R;
+        result = `Napětí: ${formatAuto(voltage, [
+          { factor: 0.001, unit: "mV" },
+          { factor: 1, unit: "V" },
+          { factor: 1000, unit: "kV" }
         ])}`;
       } else if (I === null) {
-        result = U / R;
-        message = `Proud: ${formatAuto(result, [
-          { factor: 0.000001, name: "µA" },
-          { factor: 0.001, name: "mA" },
-          { factor: 1, name: "A" }
+        const current = U / R;
+        result = `Proud: ${formatAuto(current, [
+          { factor: 0.000001, unit: "µA" },
+          { factor: 0.001, unit: "mA" },
+          { factor: 1, unit: "A" }
         ])}`;
       } else {
-        result = U / I;
-        message = `Odpor: ${formatAuto(result, [
-          { factor: 1, name: "Ω" },
-          { factor: 1000, name: "kΩ" },
-          { factor: 1000000, name: "MΩ" }
+        const resistance = U / I;
+        result = `Odpor: ${formatAuto(resistance, [
+          { factor: 1, unit: "Ω" },
+          { factor: 1000, unit: "kΩ" },
+          { factor: 1000000, unit: "MΩ" }
         ])}`;
       }
 
-      output("ohm-result", message);
+      showResult("ohm-result", result);
     });
   }
-
-  // --------------------------------------------------
-  // ELEKTRICKÝ VÝKON
-  // --------------------------------------------------
 
   function initPower() {
     const button = $("power-calculate");
@@ -130,98 +94,67 @@
 
     button.addEventListener("click", () => {
       const target = $("power-target").value;
-
       const rawU = number("power-voltage");
       const rawI = number("power-current");
       const rawP = number("power-watts");
 
-      const U = rawU === null ? null :
-        rawU * Number($("power-voltage-unit").value);
+      const U = rawU === null ? null : rawU * Number($("power-voltage-unit").value);
+      const I = rawI === null ? null : rawI * Number($("power-current-unit").value);
+      const P = rawP === null ? null : rawP * Number($("power-watts-unit").value);
 
-      const I = rawI === null ? null :
-        rawI * Number($("power-current-unit").value);
-
-      const P = rawP === null ? null :
-        rawP * Number($("power-watts-unit").value);
-
-      const values = { voltage: U, current: I, power: P };
-      const required = target === "power"
-        ? ["voltage", "current"]
-        : target === "voltage"
-          ? ["power", "current"]
-          : ["power", "voltage"];
-
-      const inputs = required.map(key => values[key]);
-
-      if (inputs.some(value => value === null)) {
-        output(
-          "power-result",
-          "Vyplň obě hodnoty potřebné pro výpočet.",
-          true
-        );
-        return;
-      }
-
-      if (inputs.some(value => !positive(value))) {
-        output(
-          "power-result",
-          "Hodnoty musí být větší než nula.",
-          true
-        );
+      if ([U, I, P].some(v => v !== null && v < 0)) {
+        showResult("power-result", "Hodnoty nesmí být záporné.");
         return;
       }
 
       let result;
-      let message;
 
       if (target === "power") {
-        result = U * I;
-        message = `Výkon: ${formatAuto(result, [
-          { factor: 0.001, name: "mW" },
-          { factor: 1, name: "W" },
-          { factor: 1000, name: "kW" }
+        if (U === null || I === null || rawP !== null) {
+          showResult("power-result", "Pro výpočet výkonu vyplň napětí a proud. Pole výkonu nech prázdné.");
+          return;
+        }
+        result = `Výkon: ${formatAuto(U * I, [
+          { factor: 0.001, unit: "mW" },
+          { factor: 1, unit: "W" },
+          { factor: 1000, unit: "kW" }
         ])}`;
       } else if (target === "voltage") {
-        result = P / I;
-        message = `Napětí: ${formatAuto(result, [
-          { factor: 0.001, name: "mV" },
-          { factor: 1, name: "V" },
-          { factor: 1000, name: "kV" }
+        if (I === null || I === 0 || P === null || rawU !== null) {
+          showResult("power-result", "Pro výpočet napětí vyplň proud a výkon. Pole napětí nech prázdné.");
+          return;
+        }
+        result = `Napětí: ${formatAuto(P / I, [
+          { factor: 0.001, unit: "mV" },
+          { factor: 1, unit: "V" },
+          { factor: 1000, unit: "kV" }
         ])}`;
       } else {
-        result = P / U;
-        message = `Proud: ${formatAuto(result, [
-          { factor: 0.000001, name: "µA" },
-          { factor: 0.001, name: "mA" },
-          { factor: 1, name: "A" }
+        if (U === null || U === 0 || P === null || rawI !== null) {
+          showResult("power-result", "Pro výpočet proudu vyplň napětí a výkon. Pole proudu nech prázdné.");
+          return;
+        }
+        result = `Proud: ${formatAuto(P / U, [
+          { factor: 0.000001, unit: "µA" },
+          { factor: 0.001, unit: "mA" },
+          { factor: 1, unit: "A" }
         ])}`;
       }
 
-      output("power-result", message);
+      showResult("power-result", result);
     });
   }
 
-  // --------------------------------------------------
-  // LED REZISTOR
-  // --------------------------------------------------
-
-  const E12 = [
-    10, 12, 15, 18, 22, 27,
-    33, 39, 47, 56, 68, 82
-  ];
-
   function nextStandardResistor(value) {
+    const e12 = [1, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2];
     const decade = Math.pow(10, Math.floor(Math.log10(value)));
 
-    for (let multiplier of [1, 10, 100, 1000]) {
-      for (const base of E12) {
-        const candidate = base * decade * multiplier;
-
-        if (candidate >= value) return candidate;
-      }
+    for (const base of e12) {
+      const candidate = base * decade;
+      if (candidate >= value) return candidate;
     }
 
-    return value;
+    return 10 * decade;
   }
 
   function initLed() {
@@ -231,77 +164,52 @@
     button.addEventListener("click", () => {
       const supply = number("led-supply");
       const forward = number("led-forward");
-      const current = number("led-current");
+      const currentMa = number("led-current");
 
-      if (
-        supply === null ||
-        forward === null ||
-        current === null ||
-        supply <= 0 ||
-        forward < 0 ||
-        current <= 0 ||
-        supply <= forward
-      ) {
-        output(
-          "led-result",
-          "Zkontroluj hodnoty. Napájení musí být vyšší než úbytek LED a proud musí být kladný.",
-          true
-        );
+      if (supply === null || forward === null || currentMa === null ||
+          supply <= 0 || forward < 0 || currentMa <= 0 || forward >= supply) {
+        showResult("led-result", "Zkontroluj hodnoty. Napájení musí být vyšší než úbytek LED a proud musí být kladný.");
         return;
       }
 
-      const currentA = current / 1000;
-      const calculatedR = (supply - forward) / currentA;
-      const standardR = nextStandardResistor(calculatedR);
+      const current = currentMa / 1000;
+      const voltageOnResistor = supply - forward;
+      const idealResistance = voltageOnResistor / current;
+      const standardResistance = nextStandardResistor(idealResistance);
+      const actualCurrent = voltageOnResistor / standardResistance;
+      const power = voltageOnResistor * actualCurrent;
 
-      const actualCurrent = (supply - forward) / standardR;
-      const resistorPower = Math.pow(actualCurrent, 2) * standardR;
-
-      output(
-        "led-result",
-        `Vypočtený odpor: ${format(calculatedR)} Ω\n` +
-        `Doporučený odpor: ${format(standardR)} Ω\n` +
-        `Skutečný proud: ${format(actualCurrent * 1000)} mA\n` +
-        `Ztrátový výkon: ${format(resistorPower * 1000)} mW\n` +
-        `Zvol rezistor s výkonovou rezervou.`
+      showResult("led-result",
+        `Vypočtený odpor: ${format(idealResistance, 1)} Ω\n` +
+        `Doporučený E12 rezistor: ${format(standardResistance, 1)} Ω\n` +
+        `Skutečný proud: ${format(actualCurrent * 1000, 2)} mA\n` +
+        `Ztrátový výkon: ${format(power * 1000, 2)} mW\n` +
+        `Doporučení: zvol rezistor s dostatečnou výkonovou rezervou.`
       );
     });
   }
 
-  // --------------------------------------------------
-  // PŘEVODNÍK JEDNOTEK
-  // --------------------------------------------------
-
-  const UNIT_GROUPS = {
+  const conversionUnits = {
     voltage: [
-      { name: "µV", factor: 0.000001 },
       { name: "mV", factor: 0.001 },
       { name: "V", factor: 1 },
       { name: "kV", factor: 1000 }
     ],
-
     current: [
       { name: "µA", factor: 0.000001 },
       { name: "mA", factor: 0.001 },
-      { name: "A", factor: 1 },
-      { name: "kA", factor: 1000 }
+      { name: "A", factor: 1 }
     ],
-
     power: [
-      { name: "µW", factor: 0.000001 },
       { name: "mW", factor: 0.001 },
       { name: "W", factor: 1 },
-      { name: "kW", factor: 1000 },
-      { name: "MW", factor: 1000000 }
+      { name: "kW", factor: 1000 }
     ],
-
     resistance: [
-      { name: "mΩ", factor: 0.001 },
       { name: "Ω", factor: 1 },
       { name: "kΩ", factor: 1000 },
       { name: "MΩ", factor: 1000000 }
     ],
-
     capacitance: [
       { name: "pF", factor: 0.000000000001 },
       { name: "nF", factor: 0.000000001 },
@@ -315,89 +223,48 @@
     const type = $("convert-type");
     const from = $("convert-from");
     const to = $("convert-to");
-
     if (!type || !from || !to) return;
 
-    const units = UNIT_GROUPS[type.value];
+    const units = conversionUnits[type.value];
 
-    from.replaceChildren();
-    to.replaceChildren();
+    from.innerHTML = "";
+    to.innerHTML = "";
 
-    units.forEach(unit => {
-      const optionA = document.createElement("option");
-      optionA.value = String(unit.factor);
-      optionA.textContent = unit.name;
-
-      const optionB = optionA.cloneNode(true);
-
-      from.appendChild(optionA);
-      to.appendChild(optionB);
+    units.forEach((unit, index) => {
+      const optionFrom = new Option(unit.name, String(unit.factor));
+      const optionTo = new Option(unit.name, String(unit.factor));
+      from.add(optionFrom);
+      to.add(optionTo);
+      if (index === Math.min(1, units.length - 1)) to.selectedIndex = index;
     });
-
-    if (units.length > 1) {
-      from.selectedIndex = Math.min(1, units.length - 1);
-      to.selectedIndex = Math.min(2, units.length - 1);
-    }
-
-    calculateConversion();
-  }
-
-  function calculateConversion() {
-    const value = number("convert-value");
-    const from = $("convert-from");
-    const to = $("convert-to");
-
-    if (value === null || !from || !to) {
-      output("convert-result", "Zadej platnou číselnou hodnotu.", true);
-      return;
-    }
-
-    const fromFactor = Number(from.value);
-    const toFactor = Number(to.value);
-
-    if (
-      !Number.isFinite(fromFactor) ||
-      !Number.isFinite(toFactor) ||
-      toFactor <= 0
-    ) {
-      output("convert-result", "Vyber platné jednotky.", true);
-      return;
-    }
-
-    const result = value * fromFactor / toFactor;
-
-    output(
-      "convert-result",
-      `Výsledek: ${format(result)} ${to.selectedOptions[0].textContent}`
-    );
   }
 
   function initConverter() {
     if (!$("convert-type")) return;
 
-    $("convert-type").addEventListener("change", populateUnits);
-    $("convert-value").addEventListener("input", calculateConversion);
-    $("convert-from").addEventListener("change", calculateConversion);
-    $("convert-to").addEventListener("change", calculateConversion);
-
     populateUnits();
+    $("convert-type").addEventListener("change", populateUnits);
+
+    $("convert-calculate").addEventListener("click", () => {
+      const value = number("convert-value");
+
+      if (value === null) {
+        showResult("convert-result", "Zadej hodnotu, kterou chceš převést.");
+        return;
+      }
+
+      const fromFactor = Number($("convert-from").value);
+      const toFactor = Number($("convert-to").value);
+      const result = value * fromFactor / toFactor;
+
+      showResult("convert-result", `Výsledek: ${format(result, 8)} ${$("convert-to").selectedOptions[0].textContent}`);
+    });
   }
 
-  // --------------------------------------------------
-  // SPUŠTĚNÍ
-  // --------------------------------------------------
-
-  function init() {
+  document.addEventListener("DOMContentLoaded", () => {
     initOhm();
     initPower();
     initLed();
     initConverter();
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-
+  });
 })();
