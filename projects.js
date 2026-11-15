@@ -2,200 +2,112 @@
 window.VOLTLAB_DEFAULT_PROJECTS = [
   {
     id: "led-blink",
-    title: "LED Blink",
+    title: "Blikající LED",
     category: "arduino",
     icon: "◉",
     difficulty: "Začátečník",
-    time: "15 minut",
-    description: "Rozblikání LED diody pomocí Arduina. Ideální první projekt.",
-    components: ["Arduino Uno", "LED dioda", "Rezistor 220–330 Ω", "Propojovací vodiče", "USB kabel"],
-    steps: [
-      "Připoj delší nožičku LED přes rezistor na pin 13.",
-      "Kratší nožičku připoj na GND.",
-      "Otevři Arduino IDE a vyber správnou desku.",
-      "Nahraj program a sleduj blikání LED."
-    ],
+    time: "20 minut",
+    description: "Jednoduchý projekt, se kterým začneš svou Arduino cestu.",
+    components: ["Arduino Uno", "LED", "Rezistor 220 Ω", "Propojovací vodiče"],
+    steps: ["Propoj anodu LED s digitálním pinem přes rezistor.", "Katodu LED připoj na GND.", "Nahraj program pro blikání.", "Sleduj, jak LED pravidelně bliká."],
     code: `void setup() {
-  pinMode(13, OUTPUT);
+  pinMode(8, OUTPUT);
 }
-
 void loop() {
-  digitalWrite(13, HIGH);
+  digitalWrite(8, HIGH);
   delay(1000);
-
-  digitalWrite(13, LOW);
+  digitalWrite(8, LOW);
   delay(1000);
 }`,
-    note: "Pokud používáš desku s vestavěnou LED na pinu 13, můžeš externí LED vynechat."
+    note: "Vždy použij vhodný rezistor pro omezení proudu LED."
   },
   {
     id: "temperature-sensor",
-    title: "Teplotní senzor",
+    title: "Teploměr s čidlem",
     category: "arduino",
-    icon: "◌",
+    icon: "🌡",
     difficulty: "Začátečník",
-    time: "30 minut",
-    description: "Měření teploty pomocí digitálního senzoru a zobrazení hodnot v sériovém monitoru.",
-    components: ["Arduino Uno", "Senzor DS18B20", "Rezistor 4,7 kΩ", "Propojovací vodiče"],
-    steps: [
-      "Připoj napájení senzoru podle jeho datasheetu.",
-      "Datový pin připoj na digitální pin Arduina.",
-      "Mezi datovou linku a napájení zapoj pull-up rezistor 4,7 kΩ.",
-      "Nainstaluj potřebnou knihovnu a nahraj program."
-    ],
-    code: `// Ukázková kostra projektu
-#include <OneWire.h>
-#include <DallasTemperature.h>
-
-#define SENSOR_PIN 2
-
-OneWire oneWire(SENSOR_PIN);
-DallasTemperature sensors(&oneWire);
-
-void setup() {
-  Serial.begin(9600);
-  sensors.begin();
-}
-
-void loop() {
-  sensors.requestTemperatures();
-  float temp = sensors.getTempCByIndex(0);
-
-  Serial.print("Teplota: ");
-  Serial.print(temp);
-  Serial.println(" °C");
-
-  delay(1000);
-}`,
-    note: "Tento příklad vyžaduje knihovny OneWire a DallasTemperature."
+    time: "45 minut",
+    description: "Změř teplotu pomocí digitálního senzoru.",
+    components: ["Arduino", "DS18B20", "Rezistor 4,7 kΩ", "Vodiče"],
+    steps: ["Připoj napájení senzoru.", "Datový vodič připoj k digitálnímu pinu.", "Přidej pull-up rezistor 4,7 kΩ.", "Načítej hodnoty v programu."],
+    code: `// Ukázka zapojení a čtení:
+// Pro DS18B20 použij knihovny OneWire
+// a DallasTemperature.`,
+    note: "Před použitím ukázkového kódu nainstaluj potřebné knihovny."
   },
   {
     id: "esp32-webserver",
-    title: "ESP32 Wi-Fi webserver",
+    title: "ESP32 webový server",
     category: "smart-home",
     icon: "⌂",
     difficulty: "Pokročilý",
-    time: "45 minut",
-    description: "Vytvoř jednoduchou webovou stránku hostovanou přímo na ESP32.",
-    components: ["ESP32 DevKit", "USB kabel", "Wi-Fi síť"],
-    steps: [
-      "Připrav ESP32 a podporu desek v Arduino IDE.",
-      "Doplň název Wi-Fi sítě a heslo.",
-      "Nahraj program do desky.",
-      "V sériovém monitoru zjisti IP adresu zařízení.",
-      "Otevři IP adresu v prohlížeči."
-    ],
+    time: "90 minut",
+    description: "Vytvoř jednoduchou webovou stránku běžící na ESP32.",
+    components: ["ESP32", "USB kabel", "Wi-Fi síť"],
+    steps: ["Připoj ESP32 k počítači.", "Nastav přihlašovací údaje Wi-Fi.", "Spusť webový server.", "Otevři IP adresu zařízení v prohlížeči."],
     code: `#include <WiFi.h>
 #include <WebServer.h>
 
-const char* ssid = "NAZEV_SITE";
-const char* password = "HESLO_SITE";
-
+const char* ssid = "NAZEV_WIFI";
+const char* password = "HESLO_WIFI";
 WebServer server(80);
 
 void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
-
+  while (WiFi.status() != WL_CONNECTED) delay(300);
   server.on("/", []() {
-    server.send(200, "text/html",
-      "<h1>VoltLab ESP32</h1><p>Server funguje!</p>");
+    server.send(200, "text/plain", "Ahoj z VoltLabu!");
   });
-
   server.begin();
-  Serial.println(WiFi.localIP());
 }
 
 void loop() {
   server.handleClient();
 }`,
-    note: "Před zveřejněním projektu odstraň skutečné přihlašovací údaje k Wi-Fi."
+    note: "Ukázka vyžaduje doplnění údajů Wi-Fi. Nepoužívej citlivé přihlašovací údaje ve veřejném kódu."
   },
   {
     id: "robot-car",
     title: "Robotické autíčko",
     category: "robotics",
-    icon: "◎",
-    difficulty: "Středně pokročilý",
+    icon: "🚗",
+    difficulty: "Střední",
     time: "2–3 hodiny",
-    description: "Malé vozítko se dvěma motory a řídicí jednotkou.",
-    components: ["Arduino nebo ESP32", "2× DC převodový motor", "Motor driver", "Podvozek", "Kola", "Zdroj napájení"],
-    steps: [
-      "Sestav podvozek a upevni motory.",
-      "Připoj motory k motor driveru.",
-      "Propoj řídicí jednotku s driverem.",
-      "Zajisti vhodné napájení motorů a logiky.",
-      "Otestuj pohyb obou motorů a jejich směr."
-    ],
-    code: `const int leftA = 5;
-const int leftB = 6;
-const int rightA = 9;
-const int rightB = 10;
+    description: "Postav jednoduché vozítko se dvěma motory.",
+    components: ["Podvozek", "2 DC motory", "Motorový driver", "Arduino", "Baterie"],
+    steps: ["Sestav podvozek a upevni motory.", "Zapoj motory do driveru.", "Propoj driver s Arduinem.", "Naprogramuj pohyb vpřed a zatáčení."],
+    code: `// Příklad ovládání jednoho motoru
+const int IN1 = 5;
+const int IN2 = 6;
 
 void setup() {
-  pinMode(leftA, OUTPUT);
-  pinMode(leftB, OUTPUT);
-  pinMode(rightA, OUTPUT);
-  pinMode(rightB, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
 }
 
 void loop() {
-  // Jízda vpřed
-  digitalWrite(leftA, HIGH);
-  digitalWrite(leftB, LOW);
-  digitalWrite(rightA, HIGH);
-  digitalWrite(rightB, LOW);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
   delay(1000);
-
-  // Zastavení
-  digitalWrite(leftA, LOW);
-  digitalWrite(rightA, LOW);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
   delay(1000);
 }`,
-    note: "Motory nikdy nenapájej přímo z GPIO pinů. Použij vhodný motorový driver a samostatný zdroj."
+    note: "Motory nenapájej přímo z GPIO pinů Arduina. Použij motorový driver a vhodný zdroj."
   },
   {
     id: "3d-holder",
     title: "Vlastní 3D držák",
     category: "3d-printing",
-    icon: "▦",
+    icon: "▧",
     difficulty: "Začátečník",
-    time: "1 hodina",
-    description: "Navrhni a vytiskni jednoduchý držák pro elektronickou desku nebo senzor.",
+    time: "60 minut",
+    description: "Navrhni a vytiskni praktický držák pro elektroniku.",
     components: ["3D tiskárna", "PLA filament", "CAD software", "Posuvné měřítko"],
-    steps: [
-      "Změř rozměry součástky, kterou chceš upevnit.",
-      "V CAD programu vytvoř základnu a upevňovací body.",
-      "Přidej otvory pro šrouby a dostatečné vůle.",
-      "Exportuj model jako STL.",
-      "Nastav slicer a vytiskni prototyp.",
-      "Ověř rozměry a případně model uprav."
-    ],
-    code: `// Ukázkový parametrický model v OpenSCAD
-length = 70;
-width = 45;
-height = 4;
-hole = 3.2;
-
-difference() {
-  cube([length, width, height]);
-
-  translate([8, 8, -1])
-    cylinder(h=height+2, d=hole, $fn=32);
-
-  translate([length-8, 8, -1])
-    cylinder(h=height+2, d=hole, $fn=32);
-
-  translate([8, width-8, -1])
-    cylinder(h=height+2, d=hole, $fn=32);
-
-  translate([length-8, width-8, -1])
-    cylinder(h=height+2, d=hole, $fn=32);
-}`,
-    note: "Rozměry si přizpůsob podle skutečné desky a zkontroluj vůle pro šrouby."
+    steps: ["Změř rozměry součástky.", "Vytvoř jednoduchý 3D model.", "Exportuj model do STL.", "Připrav tisk ve sliceru.", "Vytiskni a otestuj držák."],
+    code: "// Model vytvoř v CAD programu\n// a exportuj jako STL soubor.",
+    note: "Nezapomeň na malou vůli mezi součástkou a držákem."
   }
 ];
