@@ -1,340 +1,200 @@
 
-/* =====================================================
-   VOLTLAB V3 – ARTICLES
-   Výchozí technické články
-   ===================================================== */
-
-(function () {
+(() => {
   "use strict";
 
   window.VOLTLAB_DEFAULT_ARTICLES = [
+
     {
-      id: "arduino-zacatek",
-      title: "Arduino: Jak začít s programováním",
+      id: "arduino-start",
+      title: "Arduino – první kroky",
       category: "arduino",
-      excerpt: "První kroky s deskou Arduino, vývojovým prostředím a jednoduchým programem.",
+      icon: "⌘",
+      readTime: 6,
+      excerpt: "Jak začít s Arduinem, připravit prostředí a rozběhnout první LED.",
       content: `
-Arduino je oblíbená platforma pro výuku elektroniky a programování.
+Arduino je oblíbená platforma pro výuku elektroniky a tvorbu vlastních zařízení.
 
-CO JE ARDUINO?
-
-Arduino je vývojová platforma, která umožňuje ovládat elektronické součástky pomocí programu.
-
-CO BUDEŠ POTŘEBOVAT?
-
-- Arduino Uno
+Pro začátek potřebuješ:
+- Arduino Uno nebo kompatibilní desku
 - USB kabel
-- Počítač
-- LED diodu
-- Rezistor 220 Ω
-- Propojovací vodiče
+- Arduino IDE
+- LED a rezistor
 
-PRVNÍ PROGRAM
+Nainstaluj Arduino IDE, připoj desku a vyber správný typ desky a port.
 
-Jedním z nejznámějších prvních projektů je blikající LED dioda.
+První projekt může být blikající LED. V Arduino IDE najdeš příklad Blink v nabídce File → Examples → 01.Basics.
 
-Program:
-
-void setup() {
-  pinMode(13, OUTPUT);
-}
-
-void loop() {
-  digitalWrite(13, HIGH);
-  delay(1000);
-
-  digitalWrite(13, LOW);
-  delay(1000);
-}
-
-JAK PROGRAM FUNGUJE?
-
-Funkce setup() se spustí pouze jednou při zapnutí nebo resetu desky.
-
-Funkce loop() se neustále opakuje.
-
-Příkaz digitalWrite() nastavuje digitální výstup a delay() určuje časovou prodlevu v milisekundách.
-
-ZÁVĚR
-
-Arduino je skvělý začátek pro vlastní elektronické projekty.
+Při připojení externí LED vždy použij vhodný předřadný rezistor.
       `,
-      image: "assets/images/arduino.jpg",
-      icon: "cpu",
-      date: "2026-11-15",
-      readTime: "5 min",
-      featured: true,
-      tags: ["Arduino", "programování", "začátečníci"]
+      tags: ["Arduino", "začátečník", "LED"]
     },
+
     {
-      id: "ohmuv-zakon",
+      id: "ohm-law",
       title: "Ohmův zákon jednoduše",
       category: "electronics",
-      excerpt: "Nauč se vypočítat napětí, proud a odpor v elektrickém obvodu.",
+      icon: "Ω",
+      readTime: 5,
+      excerpt: "Pochop vztah mezi napětím, proudem a odporem.",
       content: `
-Ohmův zákon patří mezi nejdůležitější pravidla elektrotechniky.
+Ohmův zákon popisuje vztah mezi napětím, proudem a odporem.
 
-ZÁKLADNÍ VZOREC
+Základní vzorec:
 
 U = R × I
 
 Kde:
+- U je napětí ve voltech
+- R je odpor v ohmech
+- I je proud v ampérech
 
-- U je elektrické napětí ve voltech (V).
-- R je elektrický odpor v ohmech (Ω).
-- I je elektrický proud v ampérech (A).
-
-DALŠÍ ÚPRAVY VZORCE
+Základní úpravy:
 
 I = U / R
 
 R = U / I
 
-PŘÍKLAD
+Příklad:
 
-Máme rezistor 1000 Ω a napětí 5 V.
+Pokud máš zdroj 5 V a rezistor 220 Ω, proud je přibližně 0,0227 A, tedy 22,7 mA.
 
-I = 5 / 1000
-
-I = 0,005 A
-
-Výsledný proud je 5 mA.
-
-PRAKTICKÉ VYUŽITÍ
-
-Ohmův zákon využiješ při návrhu LED obvodů, napájecích zdrojů i při opravách elektroniky.
-
-ZÁVĚR
-
-Pochopení Ohmova zákona je základním krokem při práci s elektronikou.
+Vždy také kontroluj výkonovou ztrátu součástky.
       `,
-      image: "assets/images/ohmuv-zakon.jpg",
-      icon: "zap",
-      date: "2026-11-15",
-      readTime: "4 min",
-      featured: true,
-      tags: ["elektronika", "Ohmův zákon", "základy"]
+      tags: ["elektronika", "Ohmův zákon", "výpočty"]
     },
+
     {
-      id: "led-rezistor",
-      title: "Jak správně zapojit LED diodu",
+      id: "led-resistor",
+      title: "Jak vybrat rezistor k LED",
       category: "electronics",
-      excerpt: "Proč potřebuje LED dioda rezistor a jak vypočítat jeho hodnotu.",
+      icon: "▥",
+      readTime: 4,
+      excerpt: "Spočítej správný předřadný odpor a ochraň svoji LED.",
       content: `
-LED dioda je polovodičová součástka, která při průchodu proudu vyzařuje světlo.
+LED potřebuje omezení proudu. K tomu slouží předřadný rezistor.
 
-POLARITA LED
-
-LED má dvě vývody:
-
-- Anoda – kladný pól.
-- Katoda – záporný pól.
-
-PROČ POUŽÍVAT REZISTOR?
-
-LED dioda potřebuje omezení proudu. Bez vhodného rezistoru může dojít k jejímu poškození.
-
-VÝPOČET REZISTORU
-
-Použijeme vzorec:
+Vzorec:
 
 R = (Uzdroj - ULED) / I
 
-PŘÍKLAD
+Příklad:
 
-Napájecí napětí: 5 V
-
-Úbytek napětí na LED: 2 V
-
-Požadovaný proud: 0,01 A
+Napájení: 5 V
+Úbytek LED: 2 V
+Proud: 10 mA
 
 R = (5 - 2) / 0,01
 
 R = 300 Ω
 
-Zvolíme vhodnou standardní hodnotu, například 330 Ω.
+Můžeš použít nejbližší vyšší běžnou hodnotu, například 330 Ω.
 
-ZÁVĚR
-
-Při zapojování LED vždy kontroluj polaritu a používej vhodné proudové omezení.
+Nezapomeň zkontrolovat maximální proud LED i výstupního pinu mikrokontroléru.
       `,
-      image: "assets/images/led.jpg",
-      icon: "lightbulb",
-      date: "2026-11-15",
-      readTime: "4 min",
-      featured: false,
       tags: ["LED", "rezistor", "elektronika"]
     },
+
     {
-      id: "robotika-zacatek",
-      title: "Robotika: Jak postavit prvního robota",
+      id: "robot-first",
+      title: "Postav si prvního robota",
       category: "robotics",
-      excerpt: "Základy robotiky, motory, senzory a řízení pohybu.",
+      icon: "◎",
+      readTime: 8,
+      excerpt: "Základní přehled podvozku, motorů a řídicí elektroniky.",
       content: `
-Robotika spojuje mechaniku, elektroniku a programování.
+Jednoduchý robot může být postavený na dvoukolovém podvozku.
 
-ZÁKLADNÍ ČÁSTI ROBOTA
+Potřebuješ:
+- Podvozek
+- Dva DC motory
+- Motorový driver
+- Řídicí desku
+- Napájení
+- Propojovací vodiče
 
-- Řídicí jednotka.
-- Motory.
-- Senzory.
-- Napájení.
-- Mechanická konstrukce.
+Motory nikdy nepřipojuj přímo na GPIO mikrokontroléru. Použij motorový driver, který zvládne jejich proud.
 
-PRVNÍ PROJEKT
-
-Jednoduchým začátkem může být malý robot na dvou kolech.
-
-Můžeš použít:
-
-- Arduino Uno.
-- Dva stejnosměrné motory.
-- Motorový driver.
-- Ultrazvukový senzor.
-- Podvozek.
-- Baterii.
-
-JAK ROBOT FUNGUJE?
-
-Řídicí jednotka zpracovává data ze senzorů a podle programu ovládá motory.
-
-BEZPEČNOST
-
-Při práci s motory kontroluj napájení a proudové zatížení řídicí elektroniky.
-
-ZÁVĚR
-
-Robotika nabízí spoustu možností pro vlastní konstrukce a experimenty.
+Nejdříve otestuj každý motor samostatně. Potom můžeš přidat senzory a automatické řízení.
       `,
-      image: "assets/images/robotika.jpg",
-      icon: "bot",
-      date: "2026-11-15",
-      readTime: "6 min",
-      featured: true,
       tags: ["robotika", "motory", "Arduino"]
     },
+
     {
-      id: "3d-tisk-zaklady",
-      title: "3D tisk: Základy pro začátečníky",
+      id: "3d-basics",
+      title: "Základy 3D tisku",
       category: "3d-printing",
-      excerpt: "Jak funguje 3D tisk, filamenty a první vlastní modely.",
+      icon: "▧",
+      readTime: 7,
+      excerpt: "První tisk, materiály a základní nastavení sliceru.",
       content: `
-3D tisk umožňuje vytvářet fyzické objekty z digitálních modelů.
+FDM tiskárna vytváří objekty postupným ukládáním roztaveného filamentu.
 
-JAK FUNGUJE FDM TISK?
+Nejčastější materiály:
 
-Tiskárna postupně nanáší roztavený plast ve vrstvách.
+PLA – vhodný pro začátečníky a běžné modely.
 
-ZÁKLADNÍ POJMY
+PETG – houževnatější materiál s lepší odolností.
 
-- Filament – materiál používaný pro tisk.
-- Extruder – mechanismus podávající filament.
-- Hotend – část, ve které se filament taví.
-- Slicer – program připravující model pro tisk.
+ABS – vyžaduje náročnější tiskové podmínky.
 
-NEJBĚŽNĚJŠÍ MATERIÁLY
+Před tiskem zkontroluj:
+- Čistotu tiskové podložky
+- Správnou první vrstvu
+- Teplotu trysky
+- Nastavení sliceru
 
-PLA je vhodný pro začátečníky.
-
-PETG nabízí vyšší odolnost a houževnatost.
-
-ABS vyžaduje pečlivější nastavení a vhodné větrání.
-
-PRVNÍ TISK
-
-Začni jednoduchým modelem, například testovací kostkou.
-
-ZÁVĚR
-
-3D tisk je užitečný při výrobě držáků, krytů a součástek pro vlastní projekty.
+Začni jednoduchým testovacím modelem.
       `,
-      image: "assets/images/3d-tisk.jpg",
-      icon: "box",
-      date: "2026-11-15",
-      readTime: "5 min",
-      featured: false,
-      tags: ["3D tisk", "PLA", "modelování"]
+      tags: ["3D tisk", "PLA", "slicer"]
     },
+
     {
-      id: "chytra-domacnost",
-      title: "Chytrá domácnost s ESP32",
+      id: "esp32-home",
+      title: "ESP32 a chytrá domácnost",
       category: "smart-home",
-      excerpt: "Seznam se s ESP32 a možnostmi automatizace domácnosti.",
+      icon: "⌂",
+      readTime: 9,
+      excerpt: "Využij Wi-Fi mikrokontrolér pro vlastní automatizaci.",
       content: `
-Chytrá domácnost propojuje zařízení, senzory a automatizaci.
-
-CO JE ESP32?
-
 ESP32 je mikrokontrolér s podporou Wi-Fi a Bluetooth.
 
-CO S NÍM MŮŽEŠ VYTVOŘIT?
+Můžeš ho využít například pro:
+- Měření teploty
+- Ovládání osvětlení
+- Monitorování prostředí
+- Lokální webové rozhraní
+- Automatizaci domácnosti
 
-- Měření teploty.
-- Monitorování vlhkosti.
-- Ovládání osvětlení.
-- Sledování spotřeby.
-- Automatické upozornění.
+Pozor: GPIO ESP32 pracují s logikou 3,3 V. Nepřipojuj na ně přímo 5 V, pokud konkrétní deska výslovně neuvádí, že je daný vstup toleruje.
 
-ZÁKLADNÍ SOUČÁSTKY
-
-- ESP32.
-- Teplotní senzor.
-- Propojovací vodiče.
-- USB napájení.
-
-BEZPEČNOST
-
-Pro začátek používej nízké bezpečné napětí. Síťové napětí 230 V svěř odborníkovi a nepřipojuj ho přímo k vývojové desce.
-
-ZÁVĚR
-
-ESP32 je výborná platforma pro domácí automatizaci a IoT projekty.
+Při připojení do domácí sítě mysli také na bezpečnost.
       `,
-      image: "assets/images/esp32.jpg",
-      icon: "house",
-      date: "2026-11-15",
-      readTime: "5 min",
-      featured: true,
-      tags: ["ESP32", "IoT", "chytrá domácnost"]
+      tags: ["ESP32", "Wi-Fi", "IoT"]
     },
+
     {
-      id: "multimetr",
-      title: "Jak používat digitální multimetr",
-      category: "electronics",
-      excerpt: "Změř napětí, odpor a proud a nauč se správně používat multimetr.",
+      id: "programming-start",
+      title: "Základy programování mikrokontrolérů",
+      category: "programming",
+      icon: "</>",
+      readTime: 6,
+      excerpt: "Proměnné, podmínky a funkce jako základ každého programu.",
       content: `
-Digitální multimetr je základním nástrojem každého elektronika.
+Při programování mikrokontrolérů se setkáš s několika základními prvky.
 
-MĚŘENÍ NAPĚTÍ
+Proměnná ukládá hodnotu.
 
-Napětí se měří paralelně k měřenému prvku.
+Podmínka if rozhoduje podle toho, zda je splněna určitá podmínka.
 
-MĚŘENÍ PROUDU
+Funkce seskupuje příkazy do jednoho pojmenovaného bloku.
 
-Při měření proudu se multimetr zapojuje sériově do obvodu.
+Cyklus loop může opakovaně vykonávat určitou činnost.
 
-MĚŘENÍ ODPORU
-
-Odpor měř pouze v obvodu bez napájení a po vybití kondenzátorů.
-
-BEZPEČNOST
-
-- Před měřením zkontroluj správný vstup měřicích kabelů.
-- Nastav správný rozsah.
-- Nikdy neměř odpor na napájeném obvodu.
-- Neprováděj měření síťového napětí, pokud nemáš odpovídající znalosti a vybavení.
-
-ZÁVĚR
-
-Multimetr ti pomůže odhalit chyby v obvodu a ověřit správnou funkci součástek.
+Nejlepší způsob, jak se učit, je psát malé programy a postupně je rozšiřovat.
       `,
-      image: "assets/images/multimetr.jpg",
-      icon: "activity",
-      date: "2026-11-15",
-      readTime: "5 min",
-      featured: false,
-      tags: ["multimetr", "měření", "elektronika"]
+      tags: ["programování", "kód", "začátečník"]
     }
+
   ];
 
 })();
