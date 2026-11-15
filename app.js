@@ -1,53 +1,26 @@
 
-/* =====================================================
-   VOLTLAB V3 – CORE APPLICATION
-   Hlavní propojení webu, dat a administrace
-   ===================================================== */
-
-(function () {
+(() => {
   "use strict";
 
   const CONFIG = window.VOLTLAB_CONFIG || {};
+  const STORAGE = CONFIG.storage || {};
 
-  const STORAGE = CONFIG.storage || {
-    articles: "voltLabArticles_v3",
-    projects: "voltLabProjects_v3",
-    gallery: "voltLabGallery_v3",
-    widgets: "voltLabWidgets_v3",
-    categories: "voltLabCategories_v3",
-    settings: "voltLabSettings_v3",
-    statistics: "voltLabStatistics_v3",
-    theme: "voltLabTheme_v3"
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    articleCategory: "all",
+    projectCategory: "all",
+    articleSearch: "",
+    projectSearch: "",
+    articles: [],
+    projects: []
   };
-
-  const DEFAULTS = {
-    articles: window.VOLTLAB_DEFAULT_ARTICLES || [],
-    projects: window.VOLTLAB_DEFAULT_PROJECTS || [],
-    gallery: [],
-    widgets: CONFIG.widgets || [],
-    categories: CONFIG.categories || [],
-    settings: CONFIG.homepage || {},
-    statistics: {
-      pageViews: 0,
-      articleViews: 0,
-      projectViews: 0,
-      visits: []
-    }
-  };
-
-  const memoryStorage = {};
 
   function readStorage(key, fallback) {
     try {
       const value = localStorage.getItem(key);
-
-      if (value === null) {
-        return fallback;
-      }
-
-      return JSON.parse(value);
-    } catch (error) {
-      console.warn("VoltLab: Chyba při čtení dat:", key, error);
+      return value ? JSON.parse(value) : fallback;
+    } catch {
       return fallback;
     }
   }
@@ -55,359 +28,590 @@
   function writeStorage(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-      return true;
     } catch (error) {
-      console.error("VoltLab: Chyba při ukládání:", key, error);
-      toast("Data se nepodařilo uložit. Zkontroluj kapacitu úložiště.", "error");
-      return false;
+      console.warn("VoltLab: Uložení se nezdařilo.", error);
     }
   }
 
-  function getData(name) {
-    if (!STORAGE[name]) return [];
-    return readStorage(STORAGE[name], DEFAULTS[name] || []);
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
   }
 
-  function saveData(name, value) {
-    if (!STORAGE[name]) return false;
-    return writeStorage(STORAGE[name], value);
-  }
+  function notify(message) {
+    const toast = $("toast-region");
+    if (!toast) return;
 
-  function toast(message, type = "success") {
-    let container = document.getElementById("toast-container");
+    toast.textContent = message;
+    toast.classList.add("visible");
 
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "toast-container";
-      container.className = "toast-container";
-      document.body.appendChild(container);
-    }
-
-    const element = document.createElement("div");
-    element.className = `toast toast-${type}`;
-    element.textContent = message;
-
-    container.appendChild(element);
-
-    setTimeout(() => {
-      element.remove();
-    }, 3500);
-  }
-
-  function getArticles() {
-    return getData("articles");
-  }
-
-  function saveArticles(items) {
-    return Array.isArray(items) && saveData("articles", items);
-  }
-
-  function getProjects() {
-    return getData("projects");
-  }
-
-  function saveProjects(items) {
-    return Array.isArray(items) && saveData("projects", items);
-  }
-
-  function getGallery() {
-    return getData("gallery");
-  }
-
-  function saveGallery(items) {
-    return Array.isArray(items) && saveData("gallery", items);
+    clearTimeout(notify.timer);
+    notify.timer = setTimeout(() => {
+      toast.classList.remove("visible");
+    }, 2800);
   }
 
   function getCategories() {
-    return getData("categories");
+    return CONFIG.categories || [];
   }
 
-  function saveCategories(items) {
-    return Array.isArray(items) && saveData("categories", items);
+  function categoryName(id) {
+    const category = getCategories().find(item => item.id === id);
+    return category ? category.name : "Ostatní";
   }
 
-  function getWidgets() {
-    return getData("widgets");
-  }
+  function initializeContent() {
+    const defaultArticles = window.VOLTLAB_DEFAULT_ARTICLES || [];
+    const defaultProjects = window.VOLTLAB_DEFAULT_PROJECTS || [];
 
-  function saveWidgets(items) {
-    return Array.isArray(items) && saveData("widgets", items);
-  }
+    const savedArticles = readStorage(STORAGE.articles, null);
+    const savedProjects = readStorage(STORAGE.projects, null);
 
-  function getSettings() {
-    return getData("settings");
-  }
+    state.articles = Array.isArray(savedArticles)
+      ? savedArticles
+      : defaultArticles;
 
-  function saveSettings(settings) {
-    return settings && typeof settings === "object"
-      ? saveData("settings", settings)
-      : false;
-  }
+    state.projects = Array.isArray(savedProjects)
+      ? savedProjects
+      : defaultProjects;
 
-  function getStatistics() {
-    return getData("statistics");
-  }
-
-  function saveStatistics(statistics) {
-    return saveData("statistics", statistics);
-  }
-
-  function incrementStatistic(type) {
-    const statistics = getStatistics();
-
-    if (typeof statistics[type] !== "number") {
-      statistics[type] = 0;
+    if (!Array.isArray(savedArticles)) {
+      writeStorage(STORAGE.articles, state.articles);
     }
 
-    statistics[type]++;
+    if (!Array.isArray(savedProjects)) {
+      writeStorage(STORAGE.projects, state.projects);
+    }
+  }
 
-    if (Array.isArray(statistics.visits)) {
-      statistics.visits.push({
-        type,
-        date: new Date().toISOString()
-      });
+  // --------------------------------------------------
+  // KATEGORIE
+  // --------------------------------------------------
 
-      if (statistics.visits.length > 1000) {
-        statistics.visits = statistics.visits.slice(-1000);
+  function createCategoryButtons(containerId, type) {
+    const container = $(containerId);
+    if (!container) return;
+
+    const categories = getCategories();
+
+    container.innerHTML = `
+      <button class="filter-button active" data-category="all">
+        Vše
+      </button>
+      ${categories.map(category => `
+        <button class="filter-button"
+          data-category="${escapeHTML(category.id)}">
+          ${escapeHTML(category.icon || "")}
+          ${escapeHTML(category.name)}
+        </button>
+      `).join("")}
+    `;
+
+    container.addEventListener("click", event => {
+      const button = event.target.closest("[data-category]");
+      if (!button) return;
+
+      if (type === "article") {
+        state.articleCategory = button.dataset.category;
+        renderArticles();
+      } else {
+        state.projectCategory = button.dataset.category;
+        renderProjects();
       }
-    }
 
-    saveStatistics(statistics);
+      container.querySelectorAll(".filter-button").forEach(item => {
+        item.classList.toggle("active", item === button);
+      });
+    });
   }
 
-  function setTheme(theme) {
-    if (!["dark", "light"].includes(theme)) return;
+  function renderCategoryCards() {
+    const container = $("category-grid");
+    if (!container) return;
 
-    document.documentElement.dataset.theme = theme;
+    container.innerHTML = getCategories().map(category => `
+      <button class="category-card"
+        data-open-category="${escapeHTML(category.id)}">
+        <span class="category-icon">
+          ${escapeHTML(category.icon || "⚡")}
+        </span>
+        <span class="category-name">
+          ${escapeHTML(category.name)}
+        </span>
+        <span class="category-description">
+          ${escapeHTML(category.description || "")}
+        </span>
+      </button>
+    `).join("");
+
+    container.addEventListener("click", event => {
+      const card = event.target.closest("[data-open-category]");
+      if (!card) return;
+
+      const category = card.dataset.openCategory;
+
+      state.articleCategory = category;
+      state.projectCategory = category;
+
+      updateFilterButtons("article-filters", category);
+      updateFilterButtons("project-filters", category);
+
+      renderArticles();
+      renderProjects();
+
+      $("articles-list")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  }
+
+  function updateFilterButtons(containerId, category) {
+    const container = $(containerId);
+    if (!container) return;
+
+    container.querySelectorAll("[data-category]").forEach(button => {
+      button.classList.toggle(
+        "active",
+        button.dataset.category === category
+      );
+    });
+  }
+
+  // --------------------------------------------------
+  // ČLÁNKY
+  // --------------------------------------------------
+
+  function renderArticles() {
+    const container = $("articles-list");
+    const empty = $("articles-empty");
+
+    if (!container) return;
+
+    const search = state.articleSearch.toLowerCase().trim();
+
+    const filtered = state.articles.filter(article => {
+      const categoryMatch =
+        state.articleCategory === "all" ||
+        article.category === state.articleCategory;
+
+      const text = [
+        article.title,
+        article.excerpt,
+        article.content,
+        ...(article.tags || [])
+      ].join(" ").toLowerCase();
+
+      return categoryMatch && text.includes(search);
+    });
+
+    container.innerHTML = filtered.map(article => `
+      <article class="content-card">
+        <div class="content-card-icon">
+          ${escapeHTML(article.icon || "📘")}
+        </div>
+
+        <div class="content-card-meta">
+          ${escapeHTML(categoryName(article.category))}
+          ${article.readTime
+            ? ` · ${escapeHTML(article.readTime)}`
+            : ""}
+        </div>
+
+        <h3>${escapeHTML(article.title)}</h3>
+
+        <p>${escapeHTML(article.excerpt || "")}</p>
+
+        <button class="text-button"
+          data-open-article="${escapeHTML(article.id)}">
+          Přečíst článek →
+        </button>
+      </article>
+    `).join("");
+
+    if (empty) {
+      empty.hidden = filtered.length > 0;
+    }
+  }
+
+  // --------------------------------------------------
+  // PROJEKTY
+  // --------------------------------------------------
+
+  function renderProjects() {
+    const container = $("projects-list");
+    const empty = $("projects-empty");
+
+    if (!container) return;
+
+    const search = state.projectSearch.toLowerCase().trim();
+
+    const filtered = state.projects.filter(project => {
+      const categoryMatch =
+        state.projectCategory === "all" ||
+        project.category === state.projectCategory;
+
+      const text = [
+        project.title,
+        project.description,
+        project.difficulty,
+        ...(project.components || []),
+        ...(project.tags || [])
+      ].join(" ").toLowerCase();
+
+      return categoryMatch && text.includes(search);
+    });
+
+    container.innerHTML = filtered.map(project => `
+      <article class="content-card">
+        <div class="content-card-icon">
+          ${escapeHTML(project.icon || "🔧")}
+        </div>
+
+        <div class="content-card-meta">
+          ${escapeHTML(categoryName(project.category))}
+          ${project.difficulty
+            ? ` · ${escapeHTML(project.difficulty)}`
+            : ""}
+        </div>
+
+        <h3>${escapeHTML(project.title)}</h3>
+
+        <p>${escapeHTML(project.description || "")}</p>
+
+        <button class="text-button"
+          data-open-project="${escapeHTML(project.id)}">
+          Zobrazit projekt →
+        </button>
+      </article>
+    `).join("");
+
+    if (empty) {
+      empty.hidden = filtered.length > 0;
+    }
+  }
+
+  // --------------------------------------------------
+  // DETAIL ČLÁNKU A PROJEKTU
+  // --------------------------------------------------
+
+  function openDialog(content) {
+    const dialog = $("content-dialog");
+    const target = $("dialog-content");
+
+    if (!dialog || !target) return;
+
+    target.innerHTML = content;
+
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+  }
+
+  function closeDialog() {
+    const dialog = $("content-dialog");
+    if (!dialog) return;
+
+    if (typeof dialog.close === "function") {
+      dialog.close();
+    } else {
+      dialog.removeAttribute("open");
+    }
+  }
+
+  function openArticle(id) {
+    const article = state.articles.find(item => item.id === id);
+    if (!article) return;
+
+    openDialog(`
+      <div class="dialog-meta">
+        ${escapeHTML(categoryName(article.category))}
+        ${article.readTime
+          ? ` · ${escapeHTML(article.readTime)}`
+          : ""}
+      </div>
+
+      <h2>${escapeHTML(article.icon || "📘")}
+        ${escapeHTML(article.title)}</h2>
+
+      <p class="dialog-excerpt">
+        ${escapeHTML(article.excerpt || "")}
+      </p>
+
+      <div class="dialog-body">
+        ${escapeHTML(article.content || "")
+          .split(/\n{2,}/)
+          .map(paragraph => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
+          .join("")}
+      </div>
+    `);
+  }
+
+  function openProject(id) {
+    const project = state.projects.find(item => item.id === id);
+    if (!project) return;
+
+    const list = (items) => `
+      <ul>
+        ${(items || []).map(item =>
+          `<li>${escapeHTML(item)}</li>`
+        ).join("")}
+      </ul>
+    `;
+
+    openDialog(`
+      <div class="dialog-meta">
+        ${escapeHTML(categoryName(project.category))}
+        ${project.difficulty
+          ? ` · ${escapeHTML(project.difficulty)}`
+          : ""}
+        ${project.time
+          ? ` · ${escapeHTML(project.time)}`
+          : ""}
+      </div>
+
+      <h2>${escapeHTML(project.icon || "🔧")}
+        ${escapeHTML(project.title)}</h2>
+
+      <p>${escapeHTML(project.description || "")}</p>
+
+      <h3>Potřebné součástky</h3>
+      ${list(project.components)}
+
+      <h3>Postup</h3>
+      ${list(project.steps)}
+
+      ${project.code ? `
+        <h3>Ukázkový kód</h3>
+        <pre><code>${escapeHTML(project.code)}</code></pre>
+        <button class="button secondary"
+          id="copy-project-code">
+          Kopírovat kód
+        </button>
+      ` : ""}
+
+      ${project.note ? `
+        <div class="safety-note">
+          ${escapeHTML(project.note)}
+        </div>
+      ` : ""}
+    `);
+
+    const copyButton = $("copy-project-code");
+
+    if (copyButton && project.code) {
+      copyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(project.code);
+          notify("Kód byl zkopírován.");
+        } catch {
+          notify("Kopírování není v tomto prohlížeči dostupné.");
+        }
+      });
+    }
+  }
+
+  function initDialog() {
+    $("dialog-close")?.addEventListener("click", closeDialog);
+
+    $("content-dialog")?.addEventListener("click", event => {
+      if (event.target === $("content-dialog")) {
+        closeDialog();
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeDialog();
+    });
+
+    $("articles-list")?.addEventListener("click", event => {
+      const button = event.target.closest("[data-open-article]");
+      if (button) openArticle(button.dataset.openArticle);
+    });
+
+    $("projects-list")?.addEventListener("click", event => {
+      const button = event.target.closest("[data-open-project]");
+      if (button) openProject(button.dataset.openProject);
+    });
+  }
+
+  // --------------------------------------------------
+  // VYHLEDÁVÁNÍ
+  // --------------------------------------------------
+
+  function initSearch() {
+    $("article-search")?.addEventListener("input", event => {
+      state.articleSearch = event.target.value;
+      renderArticles();
+    });
+
+    $("project-search")?.addEventListener("input", event => {
+      state.projectSearch = event.target.value;
+      renderProjects();
+    });
+  }
+
+  // --------------------------------------------------
+  // SVĚTLÝ A TMAVÝ REŽIM
+  // --------------------------------------------------
+
+  function applyTheme(theme) {
+    const selected = theme === "light" ? "light" : "dark";
+
+    document.documentElement.dataset.theme = selected;
 
     try {
-      localStorage.setItem(STORAGE.theme, theme);
+      localStorage.setItem(STORAGE.theme || "voltlab_theme", selected);
     } catch (error) {
-      console.warn("VoltLab: Motiv se nepodařilo uložit.");
+      console.warn("VoltLab: Motiv se nepodařilo uložit.", error);
     }
 
-    const button = document.getElementById("theme-toggle");
+    const icon = $("theme-icon");
+    const button = $("theme-toggle");
+
+    if (icon) {
+      icon.textContent = selected === "dark" ? "☀️" : "🌙";
+    }
 
     if (button) {
       button.setAttribute(
         "aria-label",
-        theme === "dark" ? "Zapnout světlý režim" : "Zapnout tmavý režim"
+        selected === "dark"
+          ? "Přepnout na světlý režim"
+          : "Přepnout na tmavý režim"
       );
     }
   }
 
-  function toggleTheme() {
-    const current =
-      document.documentElement.dataset.theme ||
-      CONFIG.appearance?.defaultTheme ||
-      "dark";
-
-    setTheme(current === "dark" ? "light" : "dark");
-  }
-
-  function initializeTheme() {
-    let theme = CONFIG.appearance?.defaultTheme || "dark";
+  function initTheme() {
+    let savedTheme = null;
 
     try {
-      theme = localStorage.getItem(STORAGE.theme) || theme;
-    } catch (error) {
-      console.warn("VoltLab: Motiv není dostupný.");
-    }
-
-    setTheme(theme);
-  }
-
-  function initializeDefaults() {
-    Object.keys(DEFAULTS).forEach(name => {
-      if (!STORAGE[name]) return;
-
-      try {
-        if (localStorage.getItem(STORAGE[name]) === null) {
-          localStorage.setItem(
-            STORAGE[name],
-            JSON.stringify(DEFAULTS[name])
-          );
-        }
-      } catch (error) {
-        console.warn("VoltLab: Výchozí data nelze uložit:", name);
-      }
-    });
-  }
-
-  function exportData() {
-    const backup = {
-      application: "VoltLab",
-      version: CONFIG.site?.version || "3.0.0",
-      exportedAt: new Date().toISOString(),
-      data: {}
-    };
-
-    Object.keys(STORAGE).forEach(name => {
-      backup.data[name] = readStorage(
-        STORAGE[name],
-        DEFAULTS[name] ?? null
+      savedTheme = localStorage.getItem(
+        STORAGE.theme || "voltlab_theme"
       );
-    });
-
-    const blob = new Blob(
-      [JSON.stringify(backup, null, 2)],
-      { type: "application/json" }
-    );
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `voltlab-zaloha-${Date.now()}.json`;
-    link.click();
-
-    URL.revokeObjectURL(url);
-    toast("Záloha byla připravena.", "success");
-  }
-
-  function importData(file) {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Nebyl vybrán soubor."));
-        return;
-      }
-
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        try {
-          const backup = JSON.parse(reader.result);
-
-          if (
-            backup.application !== "VoltLab" ||
-            !backup.data ||
-            typeof backup.data !== "object"
-          ) {
-            throw new Error("Soubor není platná záloha VoltLab.");
-          }
-
-          Object.keys(STORAGE).forEach(name => {
-            if (
-              Object.prototype.hasOwnProperty.call(backup.data, name)
-            ) {
-              writeStorage(STORAGE[name], backup.data[name]);
-            }
-          });
-
-          toast("Záloha byla importována.", "success");
-          resolve(true);
-        } catch (error) {
-          toast(error.message || "Import se nezdařil.", "error");
-          reject(error);
-        }
-      };
-
-      reader.onerror = () => {
-        reject(new Error("Soubor se nepodařilo přečíst."));
-      };
-
-      reader.readAsText(file);
-    });
-  }
-
-  function resetWidgets() {
-    return saveWidgets(CONFIG.widgets || []);
-  }
-
-  function toggleWidget(id, enabled) {
-    const widgets = getWidgets();
-    const widget = widgets.find(item => item.id === id);
-
-    if (!widget) return false;
-
-    widget.enabled = Boolean(enabled);
-    return saveWidgets(widgets);
-  }
-
-  function cloneDefaultArticles() {
-    return saveArticles(
-      JSON.parse(JSON.stringify(DEFAULTS.articles))
-    );
-  }
-
-  function cloneDefaultProjects() {
-    return saveProjects(
-      JSON.parse(JSON.stringify(DEFAULTS.projects))
-    );
-  }
-
-  function initializeNavigation() {
-    const toggle = document.getElementById("mobile-menu-toggle");
-    const navigation = document.querySelector(".main-nav");
-
-    if (toggle && navigation) {
-      toggle.addEventListener("click", () => {
-        navigation.classList.toggle("is-open");
-      });
+    } catch {
+      savedTheme = null;
     }
 
-    document.querySelectorAll(".main-nav a").forEach(link => {
+    applyTheme(
+      savedTheme ||
+      CONFIG.appearance?.defaultTheme ||
+      "dark"
+    );
+
+    $("theme-toggle")?.addEventListener("click", () => {
+      const current = document.documentElement.dataset.theme;
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
+
+  // --------------------------------------------------
+  // MOBILNÍ MENU
+  // --------------------------------------------------
+
+  function initMobileMenu() {
+    const button = $("mobile-menu-toggle");
+    const nav = $("main-nav");
+
+    if (!button || !nav) return;
+
+    button.addEventListener("click", () => {
+      const isOpen = nav.classList.toggle("is-open");
+
+      button.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    nav.querySelectorAll("a").forEach(link => {
       link.addEventListener("click", () => {
-        navigation?.classList.remove("is-open");
+        nav.classList.remove("is-open");
+        button.setAttribute("aria-expanded", "false");
       });
     });
   }
 
-  function initializeThemeButton() {
-    const button = document.getElementById("theme-toggle");
+  // --------------------------------------------------
+  // ROK V PATIČCE
+  // --------------------------------------------------
 
-    if (button) {
-      button.addEventListener("click", toggleTheme);
-    }
+  function initYear() {
+    const year = $("current-year");
+    if (year) year.textContent = new Date().getFullYear();
   }
 
-  function initialize() {
-    initializeDefaults();
-    initializeTheme();
-    initializeNavigation();
-    initializeThemeButton();
-
-    if (CONFIG.statistics?.enabled) {
-      incrementStatistic("pageViews");
-    }
-
-    document.dispatchEvent(
-      new CustomEvent("voltLabReady")
-    );
-  }
+  // --------------------------------------------------
+  // VEŘEJNÉ API PRO ADMINISTRACI
+  // --------------------------------------------------
 
   window.VoltLab = {
-    getArticles,
-    saveArticles,
-    getProjects,
-    saveProjects,
-    getGallery,
-    saveGallery,
-    getCategories,
-    saveCategories,
-    getWidgets,
-    saveWidgets,
-    getSettings,
-    saveSettings,
-    getStatistics,
-    saveStatistics,
-    incrementStatistic,
-    setTheme,
-    toggleTheme,
-    toast,
-    exportData,
-    importData
+    get articles() {
+      return state.articles;
+    },
+
+    get projects() {
+      return state.projects;
+    },
+
+    saveArticles(items) {
+      state.articles = items;
+      writeStorage(STORAGE.articles, items);
+      renderArticles();
+    },
+
+    saveProjects(items) {
+      state.projects = items;
+      writeStorage(STORAGE.projects, items);
+      renderProjects();
+    },
+
+    resetContent() {
+      state.articles = window.VOLTLAB_DEFAULT_ARTICLES || [];
+      state.projects = window.VOLTLAB_DEFAULT_PROJECTS || [];
+
+      writeStorage(STORAGE.articles, state.articles);
+      writeStorage(STORAGE.projects, state.projects);
+
+      renderArticles();
+      renderProjects();
+
+      notify("Obsah byl obnoven do výchozího stavu.");
+    },
+
+    notify
   };
 
-  window.VOLTLAB_toggleWidget = toggleWidget;
-  window.VOLTLAB_resetWidgets = resetWidgets;
-  window.VOLTLAB_cloneDefaultArticles = cloneDefaultArticles;
-  window.VOLTLAB_cloneDefaultProjects = cloneDefaultProjects;
+  // --------------------------------------------------
+  // START
+  // --------------------------------------------------
+
+  function init() {
+    initializeContent();
+
+    initTheme();
+    initMobileMenu();
+    initDialog();
+    initSearch();
+    initYear();
+
+    createCategoryButtons("article-filters", "article");
+    createCategoryButtons("project-filters", "project");
+
+    renderCategoryCards();
+    renderArticles();
+    renderProjects();
+  }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize);
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    initialize();
+    init();
   }
 
 })();
