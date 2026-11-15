@@ -1,104 +1,164 @@
-# VoltLab
-Moderní responzivní webový portál v čistém HTML, CSS a JavaScriptu. Bez build procesu a bez závislostí. Připraveno pro GitHub Pages.
 
-## Spuštění
+# ⚡ VoltLab V3
 
-1. Nahraj celý obsah této složky do kořenového adresáře GitHub repozitáře.
-2. Otevři **Settings → Pages**.
-3. V části **Build and deployment** zvol **Deploy from a branch**.
-4. Vyber `main` a složku `/ (root)`, ulož.
-5. Po nasazení otevři adresu, kterou GitHub Pages zobrazí.
+**VoltLab – Elektronika v praxi**
 
-Lokální náhled: otevři `index.html` v prohlížeči. Pro nejlepší testování lze použít VS Code rozšíření Live Server.
+Moderní technický web zaměřený na elektroniku, Arduino, robotiku a automatizaci.
 
-## Přidání článku
+---
 
-Články lze spravovat dvěma způsoby:
+## 🚀 Funkce
 
-### A) Přes MOD MENU
-- Dole v patičce klikni na `MOD ACCESS`.
-- Demo přístupový kód je `zmen-me-2026`.
-- Kód změň v `config.js` ještě před zveřejněním.
-- Po odemčení lze články přidávat, upravovat a mazat.
-- Změny se ukládají do `localStorage` daného prohlížeče. Ostatní návštěvníci je neuvidí a po vymazání dat prohlížeče mohou zmizet.
-- JSON export/import slouží k záloze a přenosu obsahu.
+- Moderní responzivní design
+- Tmavý a světlý režim
+- Technické články
+- Projekty a návody
+- Arduino kódové ukázky
+- Kopírování zdrojového kódu
+- Galerie obrázků
+- Ohmův zákon – kalkulačka
+- Převodník jednotek
+- Kalkulačka barevného kódu rezistorů
+- Vyhledávání článků
+- Kategorie a štítky
+- Administrační MOD MENU
+- Správa článků a projektů
+- Správa galerie
+- Vlastní kategorie
+- Správa widgetů
+- Úprava textů hlavní stránky
+- Statistiky
+- Import a export JSON záloh
 
-### B) Přímo v souboru `articles.js`
-Přidej objekt do pole `window.VOLTLAB_ARTICLES`:
+---
 
-```js
-{
-  id: "a007",                 // unikátní ID
-  category: "Arduino",        // Arduino, Elektronika, Robotika, Automatizace, IoT
-  read: "5 min",
-  date: "15.11.2026",
-  symbol: "A",                // krátký znak na kartě
-  title: "Název článku",
-  excerpt: "Krátký popis článku.",
-  body: "Text článku. Odstavce odděluj prázdným řádkem."
+## 📁 Struktura projektu
+
+```text
+VoltLab/
+│
+├── index.html
+├── style.css
+├── config.js
+├── articles.js
+├── projects.js
+├── widgets.js
+├── app.js
+├── admin.js
+│
+└── README.md
+```
+
+---
+
+## 🛠️ Instalace
+
+1. Stáhni nebo naklonuj celý repozitář.
+2. Otevři složku projektu.
+3. Zkontroluj, že jsou všechny JavaScriptové soubory ve stejné složce jako `index.html`.
+4. Otevři `index.html` v prohlížeči.
+
+Pro lokální vývoj můžeš použít například rozšíření Live Server ve Visual Studio Code.
+
+---
+
+## 🔐 Administrační MOD MENU
+
+Výchozí demonstrační heslo:
+
+```text
+zmen-me-2026
+```
+
+Heslo můžeš změnit v souboru `config.js`:
+
+```javascript
+admin: {
+  enabled: true,
+  demoPassword: "TVOJE-NOVE-HESLO"
 }
 ```
 
-Při úpravě souboru `articles.js` se změny projeví všem návštěvníkům po nasazení na GitHub Pages. Pokud má prohlížeč lokálně uložený obsah z MOD MENU, může mít přednost lokální kopie. Pro návrat k obsahu repozitáře smaž klíč `voltLabArticles_v1` z Local Storage prohlížeče.
+**Bezpečnostní upozornění:**
 
-## Změna nastavení
+Toto přihlašování je pouze demonstrační. Heslo uložené v JavaScriptu může návštěvník webu zjistit.
 
-V `config.js` uprav:
-- `siteName` — název projektu.
-- `adminCode` — demo kód pro MOD MENU.
-- `storageKey` a `themeKey` — klíče lokálního úložiště.
+Pro ostrý provoz je potřeba serverová autentizace a databáze.
 
-## Rozšířené MOD MENU
+---
 
-Vlastnická zóna má tři části:
+## 💾 Ukládání dat
 
-- **Články:** vytváření, úpravy a mazání článků.
-- **Projekty:** samostatná správa projektů, jejich kategorií, štítků, popisů a detailních postupů.
-- **Texty a názvy:** úprava názvu webu, popisku loga, hlavního nadpisu, úvodního textu a vybraných nadpisů sekcí i textu „O webu“.
+VoltLab V3 v této verzi používá `localStorage`.
 
-Záloha nyní exportuje společně články, projekty i textová nastavení do jednoho JSON souboru. Import podporuje tento nový formát i starší export článků.
+To znamená:
 
-**Pozor:** úpravy z MOD MENU jsou stále lokální prohlížečová data. Pro publikování obsahu všem návštěvníkům je nutné přenést data do `articles.js` / zdrojových souborů a změny pushnout na GitHub, nebo web napojit na CMS či backend.
+- Data se ukládají do konkrétního prohlížeče.
+- Jiný návštěvník neuvidí tvoje lokální změny.
+- Data se automaticky nesynchronizují mezi zařízeními.
+- Smazání dat prohlížeče může způsobit jejich ztrátu.
 
-## Přidání kategorie
+Pravidelně používej export záloh v MOD MENU.
 
-1. Přidej kategorii do filtračních tlačítek v `index.html`.
-2. Přidej ji také do `<select id="editCategory">` v MOD MENU.
-3. U článků použij přesně stejný název kategorie.
+Galerie ukládá obrázky jako data URL. Velké množství obrázků může zaplnit dostupné úložiště prohlížeče.
 
-## Přidání widgetu
+---
 
-V `index.html` vlož další kartu do `.tools-grid`. V `app.js` doplň logiku widgetu a případné styly přidej do `style.css`. Existující kalkulačka Ohmova zákona a převodník odporu jsou jednoduché příklady.
+## 🌐 Publikování přes GitHub Pages
 
-## Bezpečnost — důležité
+1. Přihlas se na GitHub.
+2. Vytvoř nový veřejný repozitář, například `voltlab`.
+3. Nahraj všechny soubory projektu.
+4. Otevři nastavení repozitáře.
+5. Vyber **Pages**.
+6. V části Build and deployment zvol:
+   - Source: Deploy from a branch
+   - Branch: main
+   - Folder: / (root)
+7. Ulož nastavení.
+8. Počkej na dokončení publikování.
 
-Tento projekt je statický web. MOD MENU je pouze pohodlný editor obsahu v prohlížeči, nikoliv bezpečná administrace:
-- přístupový kód je uložen v souboru `config.js` a každý návštěvník si jej může zobrazit,
-- změny z editoru jsou uloženy jen v `localStorage` konkrétního prohlížeče,
-- MOD MENU neposílá změny do GitHub repozitáře.
-
-**Nepoužívej tento mechanismus pro ochranu citlivého obsahu ani jako skutečné přihlášení.** Pro více správců a publikování článků všem návštěvníkům doporučujeme napojit autentizaci a databázi, například Supabase (Auth + Database), případně vlastní backend. Alternativně lze redakční workflow řešit přes Decap CMS s GitHub OAuth. Tajné klíče nikdy nevkládej do frontendového JavaScriptu.
-
-## Struktura projektu
+Web bude dostupný na adrese:
 
 ```text
-volt-lab/
-├── index.html
-├── style.css
-├── app.js
-├── articles.js
-├── config.js
-├── README.md
-├── LICENSE
-└── assets/
-    └── favicon.svg
+https://TVUJ-GITHUB-UCET.github.io/voltlab/
 ```
 
-## Technologie
-- HTML5, CSS3, Vanilla JavaScript
-- Local Storage pro motiv a lokální demo obsah
-- GitHub Pages pro bezplatné statické hostování
-- Google Fonts (Manrope, DM Mono); při nedostupnosti se použijí systémové fonty
+Adresa se může lišit podle názvu repozitáře a nastavení GitHubu.
 
-## Licence
-MIT — podrobnosti v souboru `LICENSE`.
+---
+
+## 🧩 Technologie
+
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- LocalStorage
+- GitHub Pages
+
+Projekt nevyžaduje instalaci Node.js ani sestavovací nástroje.
+
+---
+
+## 🔮 Možnosti dalšího rozvoje
+
+- Připojení databáze
+- Skutečné uživatelské účty
+- Role administrátorů a redaktorů
+- Cloudové ukládání obrázků
+- Centrální správa obsahu
+- Rozšířené statistiky
+- API pro externí služby
+- PWA a offline režim
+
+---
+
+## 📜 Licence
+
+Určeno pro osobní a vzdělávací použití.
+
+Před dalším šířením projektu si ověř práva k použitým obrázkům, ikonám a externím knihovnám.
+
+---
+
+**VoltLab V3 – Technologie začíná nápadem. ⚡**
