@@ -1,805 +1,481 @@
 
-/* =====================================================
-   VOLTLAB V3 – ADMIN.JS
-   Administrace webu
-   ===================================================== */
-
 (() => {
   "use strict";
 
   const CONFIG = window.VOLTLAB_CONFIG || {};
   const ADMIN = CONFIG.admin || {};
-  const SESSION_KEY = ADMIN.sessionKey || "voltLabAdminSession";
+  const STORAGE = CONFIG.storage || {};
 
-  const getApp = () => window.VoltLab || {};
+  const $ = id => document.getElementById(id);
 
-  const getData = (method) => {
-    const result = getApp()[method]?.();
-    return Array.isArray(result) ? result : [];
-  };
+  const sessionKey = STORAGE.session || "voltlab_admin_session";
 
-  const saveData = (method, data) => {
-    if (typeof getApp()[method] !== "function") {
-      showMessage("Funkce ukládání není dostupná.");
-      return false;
-    }
+  let isLoggedIn = false;
+  let activeTab = "articles";
 
-    getApp()[method](data);
-    return true;
-  };
-
-  const escapeHTML = (value) => String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
-  function showMessage(message) {
-    if (typeof getApp().toast === "function") {
-      getApp().toast(message);
+  function notify(message) {
+    if (window.VoltLab?.notify) {
+      window.VoltLab.notify(message);
     } else {
       alert(message);
     }
   }
 
-  function isLoggedIn() {
-    return sessionStorage.getItem(SESSION_KEY) === "true";
-  }
+  function createModal() {
+    if ($("admin-modal")) return;
 
-  function openAdmin() {
-    const modal = document.getElementById("admin-modal");
-
-    if (!modal) {
-      showMessage("V HTML chybí prvek #admin-modal.");
-      return;
-    }
-
-    modal.classList.add("is-open", "active");
-    modal.setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
-
-    if (isLoggedIn()) {
-      renderDashboard();
-    } else {
-      renderLogin();
-    }
-  }
-
-  function closeAdmin() {
-    const modal = document.getElementById("admin-modal");
-    if (!modal) return;
-
-    modal.classList.remove("is-open", "active");
-    modal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
-  }
-
-  function renderLogin(error = "") {
-    const modal = document.getElementById("admin-modal");
-    if (!modal) return;
+    const modal = document.createElement("dialog");
+    modal.id = "admin-modal";
+    modal.className = "admin-modal";
 
     modal.innerHTML = `
-      <div class="admin-login">
-        <button class="admin-close"
-          data-admin-action="close" type="button">×</button>
+      <button type="button"
+        class="dialog-close"
+        id="admin-close"
+        aria-label="Zavřít">✕</button>
 
-        <div class="admin-login-icon">⚡</div>
-
-        <h2>VoltLab Admin</h2>
-        <p>Přihlášení do administrace</p>
-
-        <form id="admin-login-form">
-          <label class="admin-field">
-            Heslo
-            <input
-              type="password"
-              name="password"
-              placeholder="Zadej heslo"
-              autocomplete="current-password"
-              required
-            >
-          </label>
-
-          ${error ? `<p class="admin-error">${escapeHTML(error)}</p>` : ""}
-
-          <button class="button button-primary" type="submit">
-            Přihlásit se
-          </button>
-        </form>
-
-        <small>
-          Demonstrační administrace VoltLab V3.
-        </small>
-      </div>
-    `;
-  }
-
-  function login(password) {
-    if (!ADMIN.demoPassword) {
-      renderLogin("V config.js není nastavené demo heslo.");
-      return;
-    }
-
-    if (password !== ADMIN.demoPassword) {
-      renderLogin("Nesprávné heslo.");
-      return;
-    }
-
-    sessionStorage.setItem(SESSION_KEY, "true");
-    renderDashboard();
-    showMessage("Úspěšně přihlášeno.");
-  }
-
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
-    renderLogin();
-    showMessage("Byl(a) jsi odhlášen(a).");
-  }
-
-  function renderDashboard(section = "overview") {
-    if (!isLoggedIn()) {
-      renderLogin();
-      return;
-    }
-
-    const modal = document.getElementById("admin-modal");
-    if (!modal) return;
-
-    modal.innerHTML = `
-      <div class="admin-panel">
-
-        <header class="admin-header">
-          <div>
-            <small>VOLTLAB V3</small>
-            <h2>Administrace</h2>
-          </div>
-
-          <div class="admin-header-actions">
-            <button class="button button-secondary"
-              data-admin-action="logout">
-              Odhlásit
-            </button>
-
-            <button class="admin-close"
-              data-admin-action="close">×</button>
-          </div>
-        </header>
-
-        <div class="admin-layout">
-
-          <nav class="admin-sidebar">
-            ${nav("overview", "📊", "Přehled", section)}
-            ${nav("articles", "📝", "Články", section)}
-            ${nav("projects", "🔧", "Projekty", section)}
-            ${nav("gallery", "🖼️", "Galerie", section)}
-            ${nav("categories", "📁", "Kategorie", section)}
-            ${nav("widgets", "🧮", "Widgety", section)}
-            ${nav("homepage", "🏠", "Úvodní stránka", section)}
-            ${nav("backup", "💾", "Záloha dat", section)}
-          </nav>
-
-          <main class="admin-content">
-            ${renderSection(section)}
-          </main>
-
-        </div>
-      </div>
+      <div id="admin-content"></div>
     `;
 
-    modal.classList.add("is-open", "active");
-    modal.setAttribute("aria-hidden", "false");
-  }
+    document.body.appendChild(modal);
 
-  function nav(id, icon, label, active) {
-    return `
-      <button
-        class="admin-nav-item ${active === id ? "active" : ""}"
-        data-admin-section="${id}"
-        type="button">
-        ${icon} ${label}
-      </button>
-    `;
-  }
+    $("admin-close").addEventListener("click", closeModal);
 
-  function renderSection(section) {
-    const sections = {
-      overview: renderOverview,
-      articles: renderArticles,
-      projects: renderProjects,
-      gallery: renderGallery,
-      categories: renderCategories,
-      widgets: renderWidgets,
-      homepage: renderHomepage,
-      backup: renderBackup
-    };
-
-    return (sections[section] || renderOverview)();
-  }
-
-  function renderOverview() {
-    const articles = getData("getArticles");
-    const projects = getData("getProjects");
-    const gallery = getData("getGallery");
-    const stats = getApp().getStatistics?.() || {};
-
-    return `
-      <h2>Přehled webu</h2>
-
-      <div class="admin-stat-grid">
-        ${stat("📝", "Články", articles.length)}
-        ${stat("🔧", "Projekty", projects.length)}
-        ${stat("🖼️", "Obrázky", gallery.length)}
-        ${stat("👁️", "Zobrazení", stats.pageViews || 0)}
-      </div>
-
-      <div class="admin-panel-card">
-        <h3>Vítej v administraci VoltLab!</h3>
-        <p>Zde můžeš spravovat obsah svého technického webu.</p>
-        <p>Nezapomeň pravidelně zálohovat svá data.</p>
-      </div>
-    `;
-  }
-
-  function stat(icon, label, value) {
-    return `
-      <div class="admin-stat-card">
-        <span>${icon}</span>
-        <strong>${escapeHTML(value)}</strong>
-        <small>${escapeHTML(label)}</small>
-      </div>
-    `;
-  }
-
-  function renderArticles() {
-    const items = getData("getArticles");
-
-    return `
-      <div class="admin-section-heading">
-        <h2>Články</h2>
-        <button class="button button-primary"
-          data-admin-action="add-article">
-          + Přidat článek
-        </button>
-      </div>
-
-      ${items.map((item, index) => `
-        <div class="admin-list-item">
-          <div>
-            <strong>${escapeHTML(item.title)}</strong>
-            <small>${escapeHTML(item.category)}</small>
-          </div>
-
-          <div class="admin-actions">
-            <button class="button button-secondary"
-              data-admin-action="edit-article"
-              data-index="${index}">Upravit</button>
-
-            <button class="button button-danger"
-              data-admin-action="delete-article"
-              data-index="${index}">Smazat</button>
-          </div>
-        </div>
-      `).join("") || "<p>Žádné články.</p>"}
-    `;
-  }
-
-  function renderProjects() {
-    const items = getData("getProjects");
-
-    return `
-      <div class="admin-section-heading">
-        <h2>Projekty</h2>
-        <button class="button button-primary"
-          data-admin-action="add-project">
-          + Přidat projekt
-        </button>
-      </div>
-
-      ${items.map((item, index) => `
-        <div class="admin-list-item">
-          <div>
-            <strong>${escapeHTML(item.title)}</strong>
-            <small>${escapeHTML(item.category)}</small>
-          </div>
-
-          <div class="admin-actions">
-            <button class="button button-secondary"
-              data-admin-action="edit-project"
-              data-index="${index}">Upravit</button>
-
-            <button class="button button-danger"
-              data-admin-action="delete-project"
-              data-index="${index}">Smazat</button>
-          </div>
-        </div>
-      `).join("") || "<p>Žádné projekty.</p>"}
-    `;
-  }
-
-  function editContent(type, index = -1) {
-    const article = type === "article";
-    const getter = article ? "getArticles" : "getProjects";
-    const saver = article ? "saveArticles" : "saveProjects";
-    const items = getData(getter);
-    const old = index >= 0 ? items[index] : {};
-
-    const title = prompt("Název:", old.title || "");
-    if (title === null || !title.trim()) return;
-
-    const category = prompt("Kategorie:", old.category || "arduino");
-    if (category === null) return;
-
-    const description = prompt(
-      "Krátký popis:",
-      old.excerpt || old.description || ""
-    );
-    if (description === null) return;
-
-    const content = prompt(
-      "Obsah nebo postup:",
-      old.content || old.instructions?.join("\n") || ""
-    );
-    if (content === null) return;
-
-    const updated = {
-      ...old,
-      id: old.id || `${type}-${Date.now()}`,
-      title: title.trim(),
-      category: category.trim(),
-      date: old.date || new Date().toISOString().slice(0, 10)
-    };
-
-    if (article) {
-      updated.excerpt = description;
-      updated.content = content;
-    } else {
-      updated.description = description;
-      updated.instructions = content.split("\n").filter(Boolean);
-    }
-
-    if (index >= 0) items[index] = updated;
-    else items.unshift(updated);
-
-    if (saveData(saver, items)) {
-      renderDashboard(article ? "articles" : "projects");
-      showMessage("Změny byly uloženy.");
-    }
-  }
-
-  function deleteContent(type, index) {
-    const article = type === "article";
-    const getter = article ? "getArticles" : "getProjects";
-    const saver = article ? "saveArticles" : "saveProjects";
-    const items = getData(getter);
-
-    if (!items[index]) return;
-    if (!confirm("Opravdu chceš položku smazat?")) return;
-
-    items.splice(index, 1);
-    saveData(saver, items);
-    renderDashboard(article ? "articles" : "projects");
-    showMessage("Položka byla smazána.");
-  }
-
-  function renderGallery() {
-    const items = getData("getGallery");
-
-    return `
-      <div class="admin-section-heading">
-        <h2>Galerie</h2>
-        <button class="button button-primary"
-          data-admin-action="add-gallery">
-          + Přidat obrázek
-        </button>
-      </div>
-
-      ${items.map((item, index) => `
-        <div class="admin-list-item">
-          <div>
-            <strong>${escapeHTML(item.title || "Obrázek")}</strong>
-            <small>${escapeHTML(item.url || item.image || "")}</small>
-          </div>
-          <button class="button button-danger"
-            data-admin-action="delete-gallery"
-            data-index="${index}">Smazat</button>
-        </div>
-      `).join("") || "<p>Galerie je prázdná.</p>"}
-    `;
-  }
-
-  function addGallery() {
-    const title = prompt("Název obrázku:");
-    if (title === null || !title.trim()) return;
-
-    const url = prompt("URL nebo cesta k obrázku:");
-    if (url === null || !url.trim()) return;
-
-    const items = getData("getGallery");
-    items.push({
-      id: `image-${Date.now()}`,
-      title: title.trim(),
-      url: url.trim(),
-      image: url.trim()
+    modal.addEventListener("click", event => {
+      if (event.target === modal) closeModal();
     });
-
-    saveData("saveGallery", items);
-    renderDashboard("gallery");
   }
 
-  function deleteGallery(index) {
-    const items = getData("getGallery");
-    if (!items[index]) return;
-    if (!confirm("Smazat obrázek?")) return;
+  function openModal() {
+    const modal = $("admin-modal");
+    if (!modal) return;
 
-    items.splice(index, 1);
-    saveData("saveGallery", items);
-    renderDashboard("gallery");
+    if (typeof modal.showModal === "function") {
+      modal.showModal();
+    } else {
+      modal.setAttribute("open", "");
+    }
   }
 
-  function renderCategories() {
-    const items = getData("getCategories");
+  function closeModal() {
+    const modal = $("admin-modal");
+    if (!modal) return;
 
-    return `
-      <div class="admin-section-heading">
-        <h2>Kategorie</h2>
-        <button class="button button-primary"
-          data-admin-action="add-category">
-          + Přidat kategorii
-        </button>
-      </div>
-
-      ${items.map((item, index) => `
-        <div class="admin-list-item">
-          <div>
-            <strong>${escapeHTML(item.name || item.title || item.id)}</strong>
-            <small>${escapeHTML(item.id)}</small>
-          </div>
-          <div class="admin-actions">
-            <button class="button button-secondary"
-              data-admin-action="edit-category"
-              data-index="${index}">Upravit</button>
-            <button class="button button-danger"
-              data-admin-action="delete-category"
-              data-index="${index}">Smazat</button>
-          </div>
-        </div>
-      `).join("")}
-    `;
+    if (typeof modal.close === "function") {
+      modal.close();
+    } else {
+      modal.removeAttribute("open");
+    }
   }
 
-  function editCategory(index = -1) {
-    const items = getData("getCategories");
-    const old = index >= 0 ? items[index] : {};
-
-    const name = prompt("Název kategorie:", old.name || old.title || "");
-    if (name === null || !name.trim()) return;
-
-    const id = prompt("ID kategorie:", old.id || name.toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, ""));
-
-    if (id === null || !id.trim()) return;
-
-    const item = { ...old, id: id.trim(), name: name.trim() };
-
-    if (index >= 0) items[index] = item;
-    else items.push(item);
-
-    saveData("saveCategories", items);
-    renderDashboard("categories");
+  function getSession() {
+    try {
+      return sessionStorage.getItem(sessionKey) === "active";
+    } catch {
+      return false;
+    }
   }
 
-  function deleteCategory(index) {
-    const items = getData("getCategories");
-    if (!items[index]) return;
-    if (!confirm("Smazat kategorii?")) return;
-
-    items.splice(index, 1);
-    saveData("saveCategories", items);
-    renderDashboard("categories");
+  function setSession(active) {
+    try {
+      if (active) {
+        sessionStorage.setItem(sessionKey, "active");
+      } else {
+        sessionStorage.removeItem(sessionKey);
+      }
+    } catch {
+      notify("Prohlížeč nedovolil uložit přihlášení.");
+    }
   }
 
-  function renderWidgets() {
-    const items = getData("getWidgets");
+  // --------------------------------------------------
+  // PŘIHLÁŠENÍ
+  // --------------------------------------------------
 
-    return `
-      <h2>Widgety</h2>
-      <p>Zapínej a vypínej nástroje webu.</p>
+  function showLogin() {
+    $("admin-content").innerHTML = `
+      <h2>Administrace VoltLab</h2>
+      <p>Pro pokračování zadej administrační heslo.</p>
 
-      ${items.map((item, index) => `
-        <div class="admin-list-item">
-          <div>
-            <strong>${escapeHTML(item.title || item.name || item.id)}</strong>
-            <small>${escapeHTML(item.description || "")}</small>
-          </div>
+      <form id="admin-login-form">
+        <label for="admin-password">Heslo</label>
+        <input
+          id="admin-password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Zadej heslo"
+          required
+        >
 
-          <label class="admin-checkbox">
-            <input type="checkbox"
-              data-admin-action="toggle-widget"
-              data-index="${index}"
-              ${item.enabled !== false ? "checked" : ""}>
-            Zapnuto
-          </label>
-        </div>
-      `).join("")}
-    `;
-  }
-
-  function renderHomepage() {
-    const settings = getApp().getSettings?.() || {};
-    const home = settings.homepage || settings;
-
-    return `
-      <h2>Úvodní stránka</h2>
-
-      <form id="admin-homepage-form" class="admin-form">
-        <label class="admin-field">
-          Nadpis
-          <input name="title" value="${escapeHTML(home.title || "")}">
-        </label>
-
-        <label class="admin-field">
-          Podnadpis
-          <input name="subtitle" value="${escapeHTML(home.subtitle || "")}">
-        </label>
-
-        <label class="admin-field">
-          Popis
-          <textarea name="description" rows="5">${escapeHTML(home.description || "")}</textarea>
-        </label>
-
-        <button class="button button-primary" type="submit">
-          Uložit
+        <button class="button full-button" type="submit">
+          Přihlásit se
         </button>
       </form>
+
+      <p class="admin-warning">
+        Demo administrace ukládá změny pouze do tohoto prohlížeče.
+      </p>
     `;
+
+    $("admin-login-form").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const password = $("admin-password").value;
+
+      if (password === ADMIN.demoPassword) {
+        isLoggedIn = true;
+        setSession(true);
+        showDashboard();
+        notify("Přihlášení bylo úspěšné.");
+      } else {
+        notify("Nesprávné heslo.");
+        $("admin-password").value = "";
+        $("admin-password").focus();
+      }
+    });
   }
 
-  function saveHomepage(form) {
-    const data = new FormData(form);
-    const settings = getApp().getSettings?.() || {};
+  // --------------------------------------------------
+  // HLAVNÍ ADMINISTRACE
+  // --------------------------------------------------
 
-    settings.homepage = {
-      ...(settings.homepage || {}),
-      title: String(data.get("title") || ""),
-      subtitle: String(data.get("subtitle") || ""),
-      description: String(data.get("description") || "")
-    };
-
-    getApp().saveSettings?.(settings);
-    showMessage("Úvodní stránka byla uložena.");
-  }
-
-  function renderBackup() {
-    return `
-      <h2>Záloha dat</h2>
-
-      <div class="admin-panel-card">
-        <h3>Export</h3>
-        <p>Stáhne obsah webu jako JSON soubor.</p>
-        <button class="button button-primary"
-          data-admin-action="export">
-          Stáhnout zálohu
-        </button>
-      </div>
-
-      <div class="admin-panel-card">
-        <h3>Import</h3>
-        <input type="file" id="admin-import-file" accept=".json,application/json">
-        <button class="button button-secondary"
-          data-admin-action="import">
-          Obnovit zálohu
-        </button>
-      </div>
-
-      <div class="admin-panel-card">
-        <h3>Widgety</h3>
-        <button class="button button-danger"
-          data-admin-action="reset-widgets">
-          Obnovit výchozí widgety
-        </button>
-      </div>
-    `;
-  }
-
-  function exportBackup() {
-    const data = {
-      version: CONFIG.version || "3.0.0",
-      exportedAt: new Date().toISOString(),
-      articles: getData("getArticles"),
-      projects: getData("getProjects"),
-      gallery: getData("getGallery"),
-      categories: getData("getCategories"),
-      widgets: getData("getWidgets"),
-      settings: getApp().getSettings?.() || {}
-    };
-
-    const blob = new Blob(
-      [JSON.stringify(data, null, 2)],
-      { type: "application/json" }
-    );
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "voltlab-zaloha.json";
-    link.click();
-
-    URL.revokeObjectURL(url);
-    showMessage("Záloha byla vytvořena.");
-  }
-
-  async function importBackup() {
-    const input = document.getElementById("admin-import-file");
-    const file = input?.files?.[0];
-
-    if (!file) {
-      showMessage("Vyber nejprve JSON soubor.");
+  function showDashboard() {
+    if (!isLoggedIn) {
+      showLogin();
       return;
     }
 
-    try {
-      const data = JSON.parse(await file.text());
+    $("admin-content").innerHTML = `
+      <h2>Administrace VoltLab</h2>
 
-      if (!data || typeof data !== "object") {
-        throw new Error("Neplatný soubor.");
+      <div class="admin-actions">
+        <button class="button secondary"
+          data-admin-tab="articles">
+          Články
+        </button>
+
+        <button class="button secondary"
+          data-admin-tab="projects">
+          Projekty
+        </button>
+
+        <button class="button secondary"
+          id="admin-reset">
+          Obnovit obsah
+        </button>
+
+        <button class="button secondary"
+          id="admin-logout">
+          Odhlásit
+        </button>
+      </div>
+
+      <div id="admin-panel"></div>
+    `;
+
+    $("admin-content").addEventListener("click", handleDashboardClick);
+
+    renderAdminTab();
+  }
+
+  function handleDashboardClick(event) {
+    const tabButton = event.target.closest("[data-admin-tab]");
+
+    if (tabButton) {
+      activeTab = tabButton.dataset.adminTab;
+      renderAdminTab();
+      return;
+    }
+
+    if (event.target.closest("#admin-logout")) {
+      isLoggedIn = false;
+      setSession(false);
+      showLogin();
+      notify("Byl jsi odhlášen.");
+      return;
+    }
+
+    if (event.target.closest("#admin-reset")) {
+      if (confirm("Opravdu chceš obnovit výchozí obsah?")) {
+        window.VoltLab?.resetContent();
+        renderAdminTab();
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // SPRÁVA ČLÁNKŮ
+  // --------------------------------------------------
+
+  function renderAdminTab() {
+    const panel = $("admin-panel");
+    if (!panel || !window.VoltLab) return;
+
+    if (activeTab === "articles") {
+      renderArticlesAdmin(panel);
+    } else {
+      renderProjectsAdmin(panel);
+    }
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+  }
+
+  function categoryOptions(selected = "") {
+    return (CONFIG.categories || []).map(category => `
+      <option
+        value="${escapeHTML(category.id)}"
+        ${category.id === selected ? "selected" : ""}>
+        ${escapeHTML(category.name)}
+      </option>
+    `).join("");
+  }
+
+  function renderArticlesAdmin(panel) {
+    const articles = window.VoltLab.articles;
+
+    panel.innerHTML = `
+      <h3>Články (${articles.length})</h3>
+
+      <form id="admin-article-form">
+        <label for="new-article-title">Název článku</label>
+        <input id="new-article-title" required>
+
+        <label for="new-article-category">Kategorie</label>
+        <select id="new-article-category">
+          ${categoryOptions()}
+        </select>
+
+        <label for="new-article-excerpt">Krátký popis</label>
+        <textarea id="new-article-excerpt" required></textarea>
+
+        <label for="new-article-content">Obsah článku</label>
+        <textarea id="new-article-content" required></textarea>
+
+        <button class="button full-button" type="submit">
+          Přidat článek
+        </button>
+      </form>
+
+      <h3>Existující články</h3>
+
+      <div class="admin-list">
+        ${articles.map(article => `
+          <div class="admin-list-item">
+            <span>${escapeHTML(article.title)}</span>
+            <button class="button secondary"
+              data-delete-article="${escapeHTML(article.id)}">
+              Smazat
+            </button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    $("admin-article-form").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const title = $("new-article-title").value.trim();
+      const excerpt = $("new-article-excerpt").value.trim();
+      const content = $("new-article-content").value.trim();
+      const category = $("new-article-category").value;
+
+      if (!title || !excerpt || !content) {
+        notify("Vyplň všechna pole.");
+        return;
       }
 
-      if (!confirm("Import může přepsat současná data. Pokračovat?")) return;
+      const newArticle = {
+        id: "article-" + Date.now(),
+        title,
+        category,
+        icon: "📘",
+        readTime: "Nový článek",
+        excerpt,
+        content,
+        tags: []
+      };
 
-      const mappings = [
-        ["articles", "saveArticles"],
-        ["projects", "saveProjects"],
-        ["gallery", "saveGallery"],
-        ["categories", "saveCategories"],
-        ["widgets", "saveWidgets"]
-      ];
+      window.VoltLab.saveArticles([
+        ...window.VoltLab.articles,
+        newArticle
+      ]);
 
-      mappings.forEach(([key, method]) => {
-        if (Array.isArray(data[key])) {
-          getApp()[method]?.(data[key]);
-        }
+      notify("Článek byl přidán.");
+      renderAdminTab();
+    });
+
+    panel.querySelectorAll("[data-delete-article]").forEach(button => {
+      button.addEventListener("click", () => {
+        const id = button.dataset.deleteArticle;
+
+        if (!confirm("Opravdu chceš smazat tento článek?")) return;
+
+        window.VoltLab.saveArticles(
+          window.VoltLab.articles.filter(item => item.id !== id)
+        );
+
+        notify("Článek byl smazán.");
+        renderAdminTab();
       });
+    });
+  }
 
-      if (data.settings && typeof data.settings === "object") {
-        getApp().saveSettings?.(data.settings);
+  // --------------------------------------------------
+  // SPRÁVA PROJEKTŮ
+  // --------------------------------------------------
+
+  function renderProjectsAdmin(panel) {
+    const projects = window.VoltLab.projects;
+
+    panel.innerHTML = `
+      <h3>Projekty (${projects.length})</h3>
+
+      <form id="admin-project-form">
+        <label for="new-project-title">Název projektu</label>
+        <input id="new-project-title" required>
+
+        <label for="new-project-category">Kategorie</label>
+        <select id="new-project-category">
+          ${categoryOptions()}
+        </select>
+
+        <label for="new-project-description">Popis</label>
+        <textarea id="new-project-description" required></textarea>
+
+        <label for="new-project-components">
+          Součástky (každou napiš na nový řádek)
+        </label>
+        <textarea id="new-project-components"></textarea>
+
+        <label for="new-project-steps">
+          Postup (každý krok na nový řádek)
+        </label>
+        <textarea id="new-project-steps"></textarea>
+
+        <label for="new-project-code">Arduino kód (nepovinné)</label>
+        <textarea id="new-project-code"></textarea>
+
+        <button class="button full-button" type="submit">
+          Přidat projekt
+        </button>
+      </form>
+
+      <h3>Existující projekty</h3>
+
+      <div class="admin-list">
+        ${projects.map(project => `
+          <div class="admin-list-item">
+            <span>${escapeHTML(project.title)}</span>
+            <button class="button secondary"
+              data-delete-project="${escapeHTML(project.id)}">
+              Smazat
+            </button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    $("admin-project-form").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const title = $("new-project-title").value.trim();
+      const description = $("new-project-description").value.trim();
+
+      if (!title || !description) {
+        notify("Vyplň název a popis projektu.");
+        return;
       }
 
-      renderDashboard("overview");
-      showMessage("Záloha byla obnovena.");
-    } catch (error) {
-      showMessage(`Chyba importu: ${error.message}`);
-    }
+      const components = $("new-project-components")
+        .value.split("\n")
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      const steps = $("new-project-steps")
+        .value.split("\n")
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      const newProject = {
+        id: "project-" + Date.now(),
+        title,
+        category: $("new-project-category").value,
+        icon: "🔧",
+        difficulty: "Neurčeno",
+        time: "",
+        description,
+        components,
+        steps,
+        code: $("new-project-code").value.trim(),
+        note: ""
+      };
+
+      window.VoltLab.saveProjects([
+        ...window.VoltLab.projects,
+        newProject
+      ]);
+
+      notify("Projekt byl přidán.");
+      renderAdminTab();
+    });
+
+    panel.querySelectorAll("[data-delete-project]").forEach(button => {
+      button.addEventListener("click", () => {
+        const id = button.dataset.deleteProject;
+
+        if (!confirm("Opravdu chceš smazat tento projekt?")) return;
+
+        window.VoltLab.saveProjects(
+          window.VoltLab.projects.filter(item => item.id !== id)
+        );
+
+        notify("Projekt byl smazán.");
+        renderAdminTab();
+      });
+    });
   }
 
-  function toggleWidget(index, enabled) {
-    const items = getData("getWidgets");
-    if (!items[index]) return;
+  // --------------------------------------------------
+  // START
+  // --------------------------------------------------
 
-    items[index].enabled = enabled;
-    saveData("saveWidgets", items);
+  function init() {
+    if (ADMIN.enabled === false) return;
 
-    window.VOLTLAB_toggleWidget?.(items[index].id, enabled);
-    renderDashboard("widgets");
-  }
+    createModal();
 
-  function handleAction(action, target) {
-    const index = Number(target.dataset.index);
+    const accessButton = $("admin-access");
 
-    switch (action) {
-      case "close":
-        closeAdmin();
-        break;
-      case "logout":
-        logout();
-        break;
-      case "add-article":
-        editContent("article");
-        break;
-      case "edit-article":
-        editContent("article", index);
-        break;
-      case "delete-article":
-        deleteContent("article", index);
-        break;
-      case "add-project":
-        editContent("project");
-        break;
-      case "edit-project":
-        editContent("project", index);
-        break;
-      case "delete-project":
-        deleteContent("project", index);
-        break;
-      case "add-gallery":
-        addGallery();
-        break;
-      case "delete-gallery":
-        deleteGallery(index);
-        break;
-      case "add-category":
-        editCategory();
-        break;
-      case "edit-category":
-        editCategory(index);
-        break;
-      case "delete-category":
-        deleteCategory(index);
-        break;
-      case "export":
-        exportBackup();
-        break;
-      case "import":
-        importBackup();
-        break;
-      case "reset-widgets":
-        if (confirm("Obnovit výchozí widgety?")) {
-          window.VOLTLAB_resetWidgets?.();
-          renderDashboard("widgets");
-        }
-        break;
-    }
-  }
-
-  document.addEventListener("click", (event) => {
-    const access = event.target.closest("#admin-access, [data-open-admin]");
-
-    if (access) {
-      event.preventDefault();
-      openAdmin();
+    if (!accessButton) {
+      console.warn("VoltLab: Tlačítko #admin-access nebylo nalezeno.");
       return;
     }
 
-    const section = event.target.closest("[data-admin-section]");
-    if (section) {
-      renderDashboard(section.dataset.adminSection);
-      return;
-    }
+    accessButton.addEventListener("click", () => {
+      isLoggedIn = getSession();
 
-    const action = event.target.closest("[data-admin-action]");
-    if (action && action.type !== "checkbox") {
-      handleAction(action.dataset.adminAction, action);
-    }
-  });
+      if (isLoggedIn) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
 
-  document.addEventListener("change", (event) => {
-    const target = event.target;
+      openModal();
+    });
+  }
 
-    if (target.matches('[data-admin-action="toggle-widget"]')) {
-      toggleWidget(Number(target.dataset.index), target.checked);
-    }
-  });
-
-  document.addEventListener("submit", (event) => {
-    if (event.target.id === "admin-login-form") {
-      event.preventDefault();
-      const password = new FormData(event.target).get("password");
-      login(String(password || ""));
-    }
-
-    if (event.target.id === "admin-homepage-form") {
-      event.preventDefault();
-      saveHomepage(event.target);
-    }
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeAdmin();
-  });
-
-  window.VoltLabAdmin = {
-    open: openAdmin,
-    close: closeAdmin,
-    logout,
-    render: renderDashboard,
-    exportBackup
-  };
-
-  window.VOLTLAB_openAdmin = openAdmin;
-  window.VOLTLAB_closeAdmin = closeAdmin;
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 
 })();
