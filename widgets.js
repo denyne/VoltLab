@@ -54,7 +54,7 @@
       const I = raw[1] === null ? null : raw[1] * Number($("ohm-current-unit").value);
       const R = raw[2] === null ? null : raw[2] * Number($("ohm-resistance-unit").value);
 
-      if (U === null && I === 0 || U === null && R === 0 || I === null && R === 0) {
+      if ((I === null && R === 0) || (R === null && I === 0)) {
         showResult("ohm-result", "Výpočet nelze provést s nulovou hodnotou ve jmenovateli.");
         return;
       }
