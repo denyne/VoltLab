@@ -419,15 +419,23 @@ button { color: inherit; }
   display: grid;
   place-items: center;
   aspect-ratio: 1;
+  width: 100%;
   max-width: 250px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 30px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface));
-  color: var(--text);
-  font-size: 76px;
-  font-weight: 800;
-  letter-spacing: -.12em;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 12%, var(--surface)),
+    var(--surface)
+  );
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.about-mark img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
 }
 .about-mark span { color: var(--accent); }
 .about-copy h2 { margin-bottom: 16px; }
