@@ -418,9 +418,9 @@ button { color: inherit; }
 .about-mark {
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
   width: 100%;
   max-width: 250px;
+  aspect-ratio: 1;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 30px;
   background: radial-gradient(
@@ -430,6 +430,13 @@ button { color: inherit; }
   );
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.about-mark img {
+  display: block;
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
 }
 
 .about-mark img {
