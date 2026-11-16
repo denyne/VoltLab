@@ -598,54 +598,47 @@ button { color: inherit; }
   max-width: 145px;
   border-radius: 22px;
   
-}
 .about-mark-text {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 14px;
   text-align: center;
+  gap: 22px;
   padding: 20px;
 }
 
 .about-kicker {
-  color: var(--accent);
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--text);
 }
 
 .about-wordmark {
   font-family: 'Manrope', sans-serif;
-  font-size: clamp(27px, 4vw, 38px);
+  font-size: clamp(34px, 4.5vw, 44px);
   font-weight: 800;
-  line-height: 1.18;
+  line-height: 1.2;
   letter-spacing: -1.5px;
   color: var(--text);
+  text-align: center;
 }
 
-.about-divider {
-  width: 36px;
-  height: 2px;
-  background: var(--accent);
-}
-
-.about-mark-text p {
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: 8px;
-  letter-spacing: 1px;
-  margin: 0;
+.about-wordmark .gradient-text {
+  display: inline-block;
 }
 
 @media (max-width: 600px) {
   .about-mark.about-mark-text {
     max-width: 220px;
     padding: 14px;
+    gap: 18px;
   }
 
   .about-wordmark {
-    font-size: 29px;
+    font-size: 32px;
   }
 }
+
