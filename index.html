@@ -1,309 +1,223 @@
 
-<!DOCTYPE html>
-<html lang="cs" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b0f0e">
-  <meta name="description" content="VoltLab – elektronika, Arduino, robotika, projekty a praktické kalkulačky.">
-  <title>VoltLab — Electronics & DIY Lab</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <script src="config.js" defer></script>
-  <script src="articles.js" defer></script>
-  <script src="projects.js" defer></script>
-  <script src="widgets.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="admin.js" defer></script>
-</head>
-<body>
-  <div class="ambient ambient-one"></div>
-  <div class="ambient ambient-two"></div>
-
-  <div class="topbar">
-    <div class="container topbar-inner">
-      <div class="status-line">
-        <span class="status-dot"></span>
-        <span>VOLT LAB SYSTEM ONLINE</span>
+<section class="section tools-section" id="tools">
+  <div class="container">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">04 / ENGINEERING TOOLS</div>
+        <h2>Laboratorní <span class="gradient-text">nástroje.</span></h2>
       </div>
-      <span class="topbar-version">INDEPENDENT ELECTRONICS LAB <span>·</span> V3.1</span>
+      <p>Malá elektronická laboratoř přímo v prohlížeči. Vybírej nástroje, zadávej hodnoty a sleduj výsledky.</p>
+    </div>
+
+    <div class="calculator-intro">
+      <div class="calculator-intro-icon">ϟ</div>
+      <div>
+        <strong>VoltLab Engineering Suite</strong>
+        <span>Elektrické výpočty · Převody jednotek · Praktické nástroje</span>
+      </div>
+      <div class="calculator-live"><i></i> READY</div>
+    </div>
+
+    <div class="calculator-category-label">ZÁKLADNÍ ELEKTRICKÉ VÝPOČTY</div>
+
+    <div class="calculator-grid">
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">Ω</span>
+          <span class="tool-tag">01 / OHM'S LAW</span>
+        </div>
+        <h3>Ohmův zákon</h3>
+        <p class="calculator-description">Vypočítej napětí, proud nebo odpor ze dvou známých hodnot.</p>
+        <div class="calculator-fields">
+          <label>Napětí
+            <div class="input-unit">
+              <input id="ohm-voltage" type="number" min="0" step="any" placeholder="Např. 12">
+              <select id="ohm-voltage-unit">
+                <option value="1">V</option>
+                <option value="0.001">mV</option>
+                <option value="1000">kV</option>
+              </select>
+            </div>
+          </label>
+          <label>Proud
+            <div class="input-unit">
+              <input id="ohm-current" type="number" min="0" step="any" placeholder="Např. 0.02">
+              <select id="ohm-current-unit">
+                <option value="1">A</option>
+                <option value="0.001">mA</option>
+                <option value="0.000001">µA</option>
+              </select>
+            </div>
+          </label>
+          <label>Odpor
+            <div class="input-unit">
+              <input id="ohm-resistance" type="number" min="0" step="any" placeholder="Např. 220">
+              <select id="ohm-resistance-unit">
+                <option value="1">Ω</option>
+                <option value="1000">kΩ</option>
+                <option value="1000000">MΩ</option>
+              </select>
+            </div>
+          </label>
+        </div>
+        <button class="button button-primary full-button" id="ohm-calculate">Vypočítat <span>→</span></button>
+        <div class="calculator-result" id="ohm-result" aria-live="polite">Vyplň přesně dvě hodnoty.</div>
+      </article>
+
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">ϟ</span>
+          <span class="tool-tag">02 / POWER</span>
+        </div>
+        <h3>Elektrický výkon</h3>
+        <p class="calculator-description">Výpočet výkonu, napětí nebo proudu podle známých parametrů.</p>
+        <div class="calculator-fields">
+          <label>Co chceš vypočítat?
+            <select class="form-select" id="power-target">
+              <option value="power">Výkon (W)</option>
+              <option value="voltage">Napětí (V)</option>
+              <option value="current">Proud (A)</option>
+            </select>
+          </label>
+          <label>Napětí
+            <div class="input-unit">
+              <input id="power-voltage" type="number" min="0" step="any" placeholder="Napětí">
+              <select id="power-voltage-unit">
+                <option value="1">V</option>
+                <option value="0.001">mV</option>
+                <option value="1000">kV</option>
+              </select>
+            </div>
+          </label>
+          <label>Proud
+            <div class="input-unit">
+              <input id="power-current" type="number" min="0" step="any" placeholder="Proud">
+              <select id="power-current-unit">
+                <option value="1">A</option>
+                <option value="0.001">mA</option>
+                <option value="0.000001">µA</option>
+              </select>
+            </div>
+          </label>
+          <label>Výkon
+            <div class="input-unit">
+              <input id="power-watts" type="number" min="0" step="any" placeholder="Výkon">
+              <select id="power-watts-unit">
+                <option value="1">W</option>
+                <option value="1000">kW</option>
+                <option value="0.001">mW</option>
+              </select>
+            </div>
+          </label>
+        </div>
+        <button class="button button-primary full-button" id="power-calculate">Vypočítat <span>→</span></button>
+        <div class="calculator-result" id="power-result" aria-live="polite">Vyber veličinu a zadej dvě známé hodnoty.</div>
+      </article>
+
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">◉</span>
+          <span class="tool-tag">03 / LED DESIGN</span>
+        </div>
+        <h3>LED rezistor</h3>
+        <p class="calculator-description">Navrhni předřadný rezistor a zjisti jeho skutečný proud i výkonovou ztrátu.</p>
+        <div class="calculator-fields">
+          <label>Napájecí napětí (V)
+            <input id="led-supply" type="number" min="0" step="any" placeholder="Např. 5">
+          </label>
+          <label>Úbytek LED (V)
+            <input id="led-forward" type="number" min="0" step="any" placeholder="Např. 2">
+          </label>
+          <label>Proud LED (mA)
+            <input id="led-current" type="number" min="0" step="any" placeholder="Např. 20">
+          </label>
+        </div>
+        <button class="button button-primary full-button" id="led-calculate">Navrhnout rezistor <span>→</span></button>
+        <div class="calculator-result" id="led-result" aria-live="polite">Výsledek návrhu se zobrazí zde.</div>
+      </article>
+
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">⇄</span>
+          <span class="tool-tag">04 / UNIT CONVERTER</span>
+        </div>
+        <h3>Převodník jednotek</h3>
+        <p class="calculator-description">Převáděj elektrické veličiny mezi běžnými jednotkami.</p>
+        <div class="calculator-fields">
+          <label>Veličina
+            <select class="form-select" id="convert-type">
+              <option value="voltage">Napětí</option>
+              <option value="current">Proud</option>
+              <option value="power">Výkon</option>
+              <option value="resistance">Odpor</option>
+              <option value="capacitance">Kapacita</option>
+            </select>
+          </label>
+          <label>Hodnota
+            <input id="convert-value" type="number" step="any" placeholder="Zadej hodnotu">
+          </label>
+          <div class="two-fields">
+            <label>Z jednotky
+              <select class="form-select" id="convert-from"></select>
+            </label>
+            <label>Na jednotku
+              <select class="form-select" id="convert-to"></select>
+            </label>
+          </div>
+        </div>
+        <button class="button button-primary full-button" id="convert-calculate">Převést jednotky <span>→</span></button>
+        <div class="calculator-result" id="convert-result" aria-live="polite">Výsledek převodu se zobrazí zde.</div>
+      </article>
+    </div>
+
+    <div class="calculator-category-label">PASIVNÍ SOUČÁSTKY A OBVODY</div>
+
+    <div class="calculator-grid">
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">R</span>
+          <span class="tool-tag">05 / RESISTOR NETWORK</span>
+        </div>
+        <h3>Sériové a paralelní odpory</h3>
+        <p class="calculator-description">Spočítej výsledný odpor rezistorové sítě.</p>
+        <div class="calculator-fields">
+          <label>Zapojení
+            <select id="resistor-mode" class="form-select">
+              <option value="series">Sériové</option>
+              <option value="parallel">Paralelní</option>
+            </select>
+          </label>
+          <label>Hodnoty odporů (Ω)
+            <textarea id="resistor-values" rows="3" placeholder="Např. 100, 220, 330"></textarea>
+          </label>
+        </div>
+        <button class="button button-primary full-button" id="resistor-calculate">Spočítat odpor <span>→</span></button>
+        <div class="calculator-result" id="resistor-result" aria-live="polite">Zadej hodnoty oddělené čárkou.</div>
+      </article>
+
+      <article class="calculator-card">
+        <div class="calculator-top">
+          <span class="calculator-icon">C</span>
+          <span class="tool-tag">06 / CAPACITOR</span>
+        </div>
+        <h3>Energie kondenzátoru</h3>
+        <p class="calculator-description">Zjisti uloženou energii a elektrický náboj kondenzátoru.</p>
+        <div class="calculator-fields">
+          <label>Kapacita (µF)
+            <input id="cap-energy-capacitance" type="number" min="0" step="any" placeholder="Např. 1000">
+          </label>
+          <label>Napětí (V)
+            <input id="cap-energy-voltage" type="number" min="0" step="any" placeholder="Např. 12">
+          </label>
+        </div>
+        <button class="button button-primary full-button" id="cap-energy-calculate">Vypočítat energii <span>→</span></button>
+        <div class="calculator-result" id="cap-energy-result" aria-live="polite">Výsledek se zobrazí zde.</div>
+      </article>
+    </div>
+
+    <div class="calculator-footer">
+      <div class="calculator-footer-icon">ⓘ</div>
+      <p>Výpočty jsou orientační technickou pomůckou. Před zapojením reálného obvodu vždy ověř hodnoty součástek, jejich toleranci a maximální zatížení.</p>
     </div>
   </div>
-
-  <header class="header">
-    <div class="container header-inner">
-      <a href="#home" class="brand" aria-label="VoltLab – domů">
-        <span class="brand-mark">
-          <svg viewBox="0 0 40 40" aria-hidden="true">
-            <path d="M23 3 8 22h10l-2 15 16-21H21z" fill="currentColor"/>
-          </svg>
-        </span>
-        <span class="brand-name">volt<span>lab</span><small>BUILD. LEARN. CREATE.</small></span>
-      </a>
-
-      <button class="mobile-menu" id="mobile-menu-toggle" aria-label="Otevřít navigaci" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
-
-      <nav class="navigation" id="main-nav">
-        <a href="#home" class="nav-link active">Domů</a>
-        <a href="#categories" class="nav-link">Kategorie</a>
-        <a href="#articles" class="nav-link">Články</a>
-        <a href="#projects" class="nav-link">Projekty</a>
-        <a href="#tools" class="nav-link">Kalkulačky</a>
-        <a href="#about" class="nav-link">O VoltLabu</a>
-      </nav>
-
-      <button class="theme-toggle" id="theme-toggle" aria-label="Přepnout barevný režim">
-        <span id="theme-icon">☼</span>
-      </button>
-    </div>
-  </header>
-
-  <main>
-    <section class="hero" id="home">
-      <div class="container hero-inner">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-line"></span> YOUR PERSONAL TECH WORKSPACE</div>
-          <h1>Objevuj.<br><span class="gradient-text">Experimentuj.</span><br>Vytvářej.</h1>
-          <p class="hero-description">Svět elektroniky, Arduina a technologií na jednom místě. Od prvního zapojení až po vlastní chytré projekty.</p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#categories">Prozkoumat VoltLab <span>↗</span></a>
-            <a class="button button-ghost" href="#projects">Zobrazit projekty</a>
-          </div>
-          <div class="hero-stats">
-            <div><strong>06</strong><span>TECH KATEGORIÍ</span></div>
-            <div><strong>∞</strong><span>MOŽNOSTÍ TVOŘENÍ</span></div>
-            <div><strong>100%</strong><span>PRO PRAXI</span></div>
-          </div>
-        </div>
-
-        <div class="hero-visual" aria-label="Dekorativní technická grafika">
-          <div class="visual-grid"></div>
-          <div class="orbit orbit-large"></div>
-          <div class="orbit orbit-small"></div>
-          <div class="visual-core">
-            <span class="core-symbol">ϟ</span>
-            <span class="core-label">VOLT<span>LAB</span></span>
-          </div>
-          <div class="float-card float-card-top">
-            <span class="float-icon">⌁</span>
-            <div><small>VOLTAGE</small><strong>12.00 V</strong></div>
-          </div>
-          <div class="float-card float-card-bottom">
-            <span class="float-icon">⌘</span>
-            <div><small>SYSTEM STATUS</small><strong><i></i> OPERATIONAL</strong></div>
-          </div>
-          <span class="visual-coordinate">49° 12' 00" N / 16° 36' 00" E</span>
-        </div>
-      </div>
-      <div class="hero-bottom-line"></div>
-    </section>
-
-    <section class="section categories-section" id="categories">
-      <div class="container">
-        <div class="section-heading">
-          <div>
-            <div class="eyebrow">01 / EXPLORE THE LAB</div>
-            <h2>Najdi svůj <span class="gradient-text">směr.</span></h2>
-          </div>
-          <p>Vyber si oblast, která tě zajímá. Každá kategorie je vstupní branou do nových znalostí a projektů.</p>
-        </div>
-        <div class="category-grid" id="category-grid"></div>
-      </div>
-    </section>
-
-    <section class="section content-section" id="articles">
-      <div class="container">
-        <div class="section-heading">
-          <div>
-            <div class="eyebrow">02 / KNOWLEDGE BASE</div>
-            <h2>Technické <span class="gradient-text">čtení.</span></h2>
-          </div>
-          <p>Návody, vysvětlení a užitečné znalosti, které můžeš rovnou využít v praxi.</p>
-        </div>
-        <div class="content-controls">
-          <div class="filter-list" id="article-filters">
-            <button class="filter-button active" data-category="all">Vše</button>
-          </div>
-          <label class="search-box">
-            <span>⌕</span>
-            <input id="article-search" type="search" placeholder="Hledat článek..." aria-label="Hledat článek">
-          </label>
-        </div>
-        <div class="content-grid" id="articles-list"></div>
-        <div class="empty-state" id="articles-empty" hidden>Žádné články neodpovídají hledání.</div>
-      </div>
-    </section>
-
-    <section class="section projects-section" id="projects">
-      <div class="container">
-        <div class="section-heading">
-          <div>
-            <div class="eyebrow">03 / BUILD SOMETHING</div>
-            <h2>Od nápadu k <span class="gradient-text">realizaci.</span></h2>
-          </div>
-          <p>Praktické projekty s komponenty, postupem a ukázkovým kódem.</p>
-        </div>
-        <div class="content-controls">
-          <div class="filter-list" id="project-filters">
-            <button class="filter-button active" data-category="all">Vše</button>
-          </div>
-          <label class="search-box">
-            <span>⌕</span>
-            <input id="project-search" type="search" placeholder="Hledat projekt..." aria-label="Hledat projekt">
-          </label>
-        </div>
-        <div class="content-grid project-grid" id="projects-list"></div>
-        <div class="empty-state" id="projects-empty" hidden>Žádné projekty neodpovídají hledání.</div>
-      </div>
-    </section>
-
-    <section class="section tools-section" id="tools">
-      <div class="container">
-        <div class="section-heading">
-          <div>
-            <div class="eyebrow">04 / ENGINEERING TOOLS</div>
-            <h2>Laboratorní <span class="gradient-text">nástroje.</span></h2>
-          </div>
-          <p>Užitečné výpočty bez zbytečného hledání. Zadej hodnoty a nech kalkulačku pracovat.</p>
-        </div>
-
-        <div class="calculator-grid">
-          <article class="calculator-card">
-            <div class="calculator-top">
-              <span class="calculator-icon">Ω</span>
-              <span class="tool-tag">ELEKTRONIKA / 01</span>
-            </div>
-            <h3>Ohmův zákon</h3>
-            <p class="calculator-description">Výpočet napětí, proudu nebo odporu. Vyplň dvě známé hodnoty.</p>
-            <div class="calculator-fields">
-              <label>Napětí
-                <div class="input-unit"><input id="ohm-voltage" type="number" min="0" step="any" placeholder="Např. 12"><select id="ohm-voltage-unit"><option value="1">V</option><option value="0.001">mV</option><option value="1000">kV</option></select></div>
-              </label>
-              <label>Proud
-                <div class="input-unit"><input id="ohm-current" type="number" min="0" step="any" placeholder="Např. 0.5"><select id="ohm-current-unit"><option value="1">A</option><option value="0.001">mA</option><option value="0.000001">µA</option></select></div>
-              </label>
-              <label>Odpor
-                <div class="input-unit"><input id="ohm-resistance" type="number" min="0" step="any" placeholder="Např. 220"><select id="ohm-resistance-unit"><option value="1">Ω</option><option value="1000">kΩ</option><option value="1000000">MΩ</option></select></div>
-              </label>
-            </div>
-            <button class="button button-primary full-button" id="ohm-calculate">Vypočítat <span>→</span></button>
-            <div class="calculator-result" id="ohm-result" aria-live="polite">Výsledek se zobrazí zde.</div>
-          </article>
-
-          <article class="calculator-card">
-            <div class="calculator-top">
-              <span class="calculator-icon">ϟ</span>
-              <span class="tool-tag">ELEKTRONIKA / 02</span>
-            </div>
-            <h3>Elektrický výkon</h3>
-            <p class="calculator-description">Spočítej výkon, napětí nebo proud podle známých parametrů.</p>
-            <div class="calculator-fields">
-              <label>Co chceš vypočítat?
-                <select class="form-select" id="power-target">
-                  <option value="power">Výkon (W)</option>
-                  <option value="voltage">Napětí (V)</option>
-                  <option value="current">Proud (A)</option>
-                </select>
-              </label>
-              <label>Napětí
-                <div class="input-unit"><input id="power-voltage" type="number" min="0" step="any" placeholder="Napětí"><select id="power-voltage-unit"><option value="1">V</option><option value="0.001">mV</option><option value="1000">kV</option></select></div>
-              </label>
-              <label>Proud
-                <div class="input-unit"><input id="power-current" type="number" min="0" step="any" placeholder="Proud"><select id="power-current-unit"><option value="1">A</option><option value="0.001">mA</option><option value="0.000001">µA</option></select></div>
-              </label>
-              <label>Výkon
-                <div class="input-unit"><input id="power-watts" type="number" min="0" step="any" placeholder="Výkon"><select id="power-watts-unit"><option value="1">W</option><option value="1000">kW</option><option value="0.001">mW</option></select></div>
-              </label>
-            </div>
-            <button class="button button-primary full-button" id="power-calculate">Vypočítat <span>→</span></button>
-            <div class="calculator-result" id="power-result" aria-live="polite">Výsledek se zobrazí zde.</div>
-          </article>
-
-          <article class="calculator-card">
-            <div class="calculator-top">
-              <span class="calculator-icon">◉</span>
-              <span class="tool-tag">LED / 03</span>
-            </div>
-            <h3>LED rezistor</h3>
-            <p class="calculator-description">Vypočítej potřebný předřadný odpor a jeho výkonovou ztrátu.</p>
-            <div class="calculator-fields">
-              <label>Napájecí napětí (V)<input id="led-supply" type="number" min="0" step="any" placeholder="Např. 5"></label>
-              <label>Úbytek LED (V)<input id="led-forward" type="number" min="0" step="any" placeholder="Např. 2"></label>
-              <label>Proud LED (mA)<input id="led-current" type="number" min="0" step="any" placeholder="Např. 20"></label>
-            </div>
-            <button class="button button-primary full-button" id="led-calculate">Vypočítat <span>→</span></button>
-            <div class="calculator-result" id="led-result" aria-live="polite">Výsledek se zobrazí zde.</div>
-          </article>
-
-          <article class="calculator-card">
-            <div class="calculator-top">
-              <span class="calculator-icon">⇄</span>
-              <span class="tool-tag">CONVERTER / 04</span>
-            </div>
-            <h3>Převodník jednotek</h3>
-            <p class="calculator-description">Rychlý převod základních elektrických veličin.</p>
-            <div class="calculator-fields">
-              <label>Veličina
-                <select class="form-select" id="convert-type">
-                  <option value="voltage">Napětí</option>
-                  <option value="current">Proud</option>
-                  <option value="power">Výkon</option>
-                  <option value="resistance">Odpor</option>
-                  <option value="capacitance">Kapacita</option>
-                </select>
-              </label>
-              <label>Hodnota<input id="convert-value" type="number" step="any" placeholder="Zadej hodnotu"></label>
-              <div class="two-fields">
-                <label>Z jednotky<select class="form-select" id="convert-from"></select></label>
-                <label>Na jednotku<select class="form-select" id="convert-to"></select></label>
-              </div>
-            </div>
-            <button class="button button-primary full-button" id="convert-calculate">Převést <span>→</span></button>
-            <div class="calculator-result" id="convert-result" aria-live="polite">Výsledek se zobrazí zde.</div>
-          </article>
-        </div>
-        <p class="safety-note"><span>ⓘ</span> Výpočty slouží jako pomůcka. Při práci s elektrickým zařízením vždy ověř hodnoty a dodržuj bezpečnostní pravidla.</p>
-      </div>
-    </section>
-
-    <section class="section about-section" id="about">
-      <div class="container about-inner">
-        <div class="about-mark">V<span>.</span>L</div>
-        <div class="about-copy">
-          <div class="eyebrow">05 / ABOUT THE PROJECT</div>
-          <h2>Technologie jsou nejlepší,<br>když jim <span class="gradient-text">rozumíš.</span></h2>
-          <p>VoltLab je prostor pro všechny, které baví elektronika, programování, bastlení a objevování nových možností. Uč se vlastním tempem, zkoušej nové věci a tvoř vlastní projekty.</p>
-          <a href="#articles" class="text-link">Začít objevovat <span>↗</span></a>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <div class="container footer-main">
-      <a href="#home" class="brand footer-brand">
-        <span class="brand-mark"><svg viewBox="0 0 40 40"><path d="M23 3 8 22h10l-2 15 16-21H21z" fill="currentColor"/></svg></span>
-        <span class="brand-name">volt<span>lab</span><small>BUILD. LEARN. CREATE.</small></span>
-      </a>
-      <p>Made for curious minds. Built for makers.</p>
-      <a href="#home" class="back-top">Zpět nahoru ↑</a>
-    </div>
-    <div class="container footer-bottom">
-      <span>© <span id="current-year"></span> VoltLab. Všechna práva vyhrazena.</span>
-      <button class="admin-access" id="admin-access" type="button">ADMIN ACCESS</button>
-      <span>V3.1 / INDEPENDENT LAB</span>
-    </div>
-  </footer>
-
-  <dialog class="content-dialog" id="content-dialog">
-    <button class="dialog-close" id="dialog-close" aria-label="Zavřít">×</button>
-    <div class="dialog-content" id="dialog-content"></div>
-  </dialog>
-
-  <div class="toast-region" id="toast-region" aria-live="polite"></div>
-</body>
-</html>
+</section>
