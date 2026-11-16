@@ -1,5 +1,5 @@
 
-# ⚡ VoltLab V3
+# ⚡ VoltLab V3.1
 
 **Moderní technický web zaměřený na elektroniku, Arduino, robotiku, 3D tisk a chytrou domácnost.**
 
