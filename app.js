@@ -357,7 +357,10 @@
   }
 
   function init() {
-    $("current-year").textContent = new Date().getFullYear();
+    const yearElement = $("current-year");
+if (yearElement) {
+  yearElement.textContent = new Date().getFullYear();
+}
 
     renderCategories();
     renderFilters();
