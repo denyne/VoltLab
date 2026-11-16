@@ -1,408 +1,251 @@
-/**
- * VoltLab V5 — Administrace a správa obsahu
- */
 
-export class AdminController {
-  constructor(store, showToast) {
-    this.store = store;
-    this.showToast = showToast;
-    this.activeTab = 'articles';
-    this.editingArticleId = null;
-    this.editingProjectId = null;
+(() => {
+  "use strict";
+
+  const config = window.VOLTLAB_CONFIG;
+  if (!config || !config.admin.enabled) return;
+
+  const $ = (id) => document.getElementById(id);
+  const storage = config.storage;
+  let modal;
+  let activeTab = "articles";
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
   }
 
-  init() {
-    this.bindEvents();
-    this.store.subscribe(() => this.render());
-    this.render();
+  function categoryOptions(selected = "") {
+    return config.categories.map(category => `
+      <option value="${escapeHTML(category.id)}" ${category.id === selected ? "selected" : ""}>
+        ${escapeHTML(category.name)}
+      </option>
+    `).join("");
   }
 
-  bindEvents() {
-    document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.activeTab = btn.dataset.adminTab;
-        this.render();
-      });
-    });
-
-    // Supabase Auth přihlášení
-    const authForm = document.getElementById('admin-auth-form');
-    if (authForm) {
-      authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('admin-email').value.trim();
-        const password = document.getElementById('admin-password').value;
-        try {
-          await this.store.loginWithSupabase(email, password);
-          authForm.reset();
-          this.showToast('Úspěšně ověřeno přes Supabase Auth.');
-        } catch (err) {
-          this.showToast(`Chyba přihlášení: ${err.message}`);
-        }
-      });
+  function createModal() {
+    if ($("admin-modal")) {
+      modal = $("admin-modal");
+      return;
     }
 
-    // Odhlášení
-    const logoutBtn = document.getElementById('admin-logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        await this.store.logoutSupabase();
-        this.showToast('Administrátor byl odhlášen.');
-      });
-    }
+    modal = document.createElement("dialog");
+    modal.id = "admin-modal";
+    modal.className = "admin-modal";
+    modal.innerHTML = `
+      <div class="admin-header">
+        <h2>VoltLab / Admin panel</h2>
+        <button class="admin-close" type="button" aria-label="Zavřít">×</button>
+      </div>
+      <div id="admin-content"></div>
+    `;
+    document.body.appendChild(modal);
 
-    // Uložení konfigurace Supabase
-    const cfgForm = document.getElementById('supabase-config-form');
-    if (cfgForm) {
-      cfgForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const url = document.getElementById('sb-url').value;
-        const key = document.getElementById('sb-anon-key').value;
-        this.store.saveSupabaseConfig(url, key);
-        this.showToast('Konfigurace Supabase byla aktualizována.');
-      });
-    }
-
-    // Formulář článku
-    const articleForm = document.getElementById('admin-article-form');
-    if (articleForm) {
-      articleForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('art-title').value.trim();
-        const category = document.getElementById('art-category').value;
-        const author = document.getElementById('art-author').value.trim() || 'Redakce VoltLab';
-        const readTime = document.getElementById('art-readtime').value.trim() || '6 min';
-        const summary = document.getElementById('art-summary').value.trim();
-        const rawBody = document.getElementById('art-content').value.trim();
-        const tagsRaw = document.getElementById('art-tags').value.trim();
-
-        if (!title || !summary || !rawBody) {
-          this.showToast('Vyplňte název, perex i text článku.');
-          return;
-        }
-
-        const article = {
-          id: this.editingArticleId || `art-${Date.now()}`,
-          title,
-          category,
-          date: new Date().toISOString().slice(0, 10),
-          readTime,
-          author,
-          featured: false,
-          summary,
-          content: rawBody.split(/\n+/).map((p) => p.trim()).filter(Boolean),
-          tags: tagsRaw ? tagsRaw.split(',').map((t) => t.trim()).filter(Boolean) : ['VoltLab']
-        };
-
-        try {
-          await this.store.upsertArticle(article);
-          this.resetArticleForm();
-          this.showToast('Článek byl uložen.');
-        } catch (err) {
-          this.showToast(err.message);
-        }
-      });
-    }
-
-    document.getElementById('art-cancel-edit')?.addEventListener('click', () => {
-      this.resetArticleForm();
-    });
-
-    // Formulář projektu
-    const projectForm = document.getElementById('admin-project-form');
-    if (projectForm) {
-      projectForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('proj-title').value.trim();
-        const category = document.getElementById('proj-category').value;
-        const status = document.getElementById('proj-status').value;
-        const difficulty = document.getElementById('proj-difficulty').value;
-        const progress = Math.min(100, Math.max(0, Number(document.getElementById('proj-progress').value) || 0));
-        const summary = document.getElementById('proj-summary').value.trim();
-        const specsRaw = document.getElementById('proj-specs').value.trim();
-        const repo = document.getElementById('proj-repo').value.trim();
-
-        if (!title || !summary) {
-          this.showToast('Vyplňte název a popis projektu.');
-          return;
-        }
-
-        const project = {
-          id: this.editingProjectId || `proj-${Date.now()}`,
-          title,
-          category,
-          status,
-          difficulty,
-          progress,
-          date: new Date().toISOString().slice(0, 10),
-          summary,
-          specs: specsRaw ? specsRaw.split(/\n+/).map((s) => s.trim()).filter(Boolean) : [],
-          repo: repo || 'https://github.com/voltlab-dev'
-        };
-
-        try {
-          await this.store.upsertProject(project);
-          this.resetProjectForm();
-          this.showToast('Projekt byl uložen.');
-        } catch (err) {
-          this.showToast(err.message);
-        }
-      });
-    }
-
-    document.getElementById('proj-cancel-edit')?.addEventListener('click', () => {
-      this.resetProjectForm();
-    });
-
-    // Formulář kategorie
-    const catForm = document.getElementById('admin-category-form');
-    if (catForm) {
-      catForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('cat-name').value.trim();
-        const description = document.getElementById('cat-desc').value.trim();
-        if (!name) return;
-        const id = name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-');
-        this.store.upsertCategory({ id, name, icon: 'cpu', description: description || 'Technická kategorie VoltLab.' });
-        catForm.reset();
-        this.showToast(`Kategorie „${name}“ byla přidána.`);
-      });
-    }
-
-    // Export / Import / Reset
-    document.getElementById('admin-export-btn')?.addEventListener('click', () => {
-      const blob = new Blob([this.store.exportJSON()], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `voltlab-v5-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      this.showToast('Export dat do JSON dokončen.');
-    });
-
-    document.getElementById('admin-import-input')?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          this.store.importJSON(String(reader.result));
-          this.showToast('Data byla úspěšně importována.');
-        } catch (err) {
-          this.showToast(`Chyba importu: ${err.message}`);
-        }
-      };
-      reader.readAsText(file);
-      e.target.value = '';
-    });
-
-    document.getElementById('admin-reset-btn')?.addEventListener('click', async () => {
-      if (window.confirm('Opravdu chcete obnovit výchozí data VoltLab V5? Lokální změny budou přepsány.')) {
-        await this.store.resetToSeed();
-        this.showToast('Výchozí data byla obnovena.');
-      }
+    modal.querySelector(".admin-close").addEventListener("click", closeModal);
+    modal.addEventListener("click", event => {
+      if (event.target === modal) closeModal();
     });
   }
 
-  resetArticleForm() {
-    this.editingArticleId = null;
-    document.getElementById('admin-article-form')?.reset();
-    const submitBtn = document.getElementById('art-submit-btn');
-    if (submitBtn) submitBtn.textContent = 'Publikovat článek';
+  function closeModal() {
+    if (modal?.open) modal.close();
   }
 
-  resetProjectForm() {
-    this.editingProjectId = null;
-    document.getElementById('admin-project-form')?.reset();
-    const submitBtn = document.getElementById('proj-submit-btn');
-    if (submitBtn) submitBtn.textContent = 'Uložit projekt';
+  function openModal() {
+    createModal();
+
+    if (sessionStorage.getItem(storage.session) === "active") {
+      showDashboard();
+    } else {
+      showLogin();
+    }
+
+    if (typeof modal.showModal === "function") modal.showModal();
+    else modal.setAttribute("open", "");
   }
 
-  render() {
-    const banner = document.getElementById('admin-security-banner');
-    const authBox = document.getElementById('admin-auth-box');
-    const logoutBtn = document.getElementById('admin-logout-btn');
+  function showLogin() {
+    $("admin-content").innerHTML = `
+      <form class="admin-form" id="admin-login-form">
+        <p style="color:var(--muted);margin:0 0 8px;font-size:12px">Přihlášení do lokální správy VoltLabu.</p>
+        <label>Admin heslo
+          <input id="admin-password" type="password" autocomplete="current-password" placeholder="Zadej heslo" required>
+        </label>
+        <div class="admin-form-actions">
+          <button class="button button-primary" type="submit">Přihlásit se →</button>
+        </div>
+        <p class="admin-warning">Demo administrace: heslo je nastavené v souboru config.js. Tato administrace není zabezpečený serverový systém.</p>
+      </form>
+    `;
 
-    if (banner) {
-      if (this.store.isServerAuthenticated()) {
-        banner.className = 'security-notice authenticated';
-        banner.innerHTML = `<strong>Produkční režim (Supabase Auth aktivní):</strong> Přihlášen jako <code>${this.store.authSession.user?.email || 'Administrátor'}</code>. Zápis je chráněn serverovým Row Level Security (RLS).`;
-        if (authBox) authBox.style.display = 'none';
-        if (logoutBtn) logoutBtn.style.display = 'inline-flex';
-      } else if (this.store.isSupabaseConfigured()) {
-        banner.className = 'security-notice';
-        banner.innerHTML = `<strong>Backend připojen, čeká na přihlášení:</strong> Pro zápis na server se přihlaste účtem Supabase Auth. Neověřené úpravy zůstanou pouze v lokálním prohlížeči.`;
-        if (authBox) authBox.style.display = 'block';
-        if (logoutBtn) logoutBtn.style.display = 'none';
+    $("admin-login-form").addEventListener("submit", event => {
+      event.preventDefault();
+
+      if ($("admin-password").value === config.admin.demoPassword) {
+        sessionStorage.setItem(storage.session, "active");
+        showDashboard();
       } else {
-        banner.className = 'security-notice';
-        banner.innerHTML = `<strong>Nedokončené produkční zabezpečení (Lokální Sandbox režim):</strong> Backend Supabase není nakonfigurován. Na statickém hostingu GitHub Pages se změny ukládají výhradně do <code>localStorage</code> vašeho prohlížeče a nemění veřejný obsah pro ostatní návštěvníky.`;
-        if (authBox) authBox.style.display = 'none';
-        if (logoutBtn) logoutBtn.style.display = 'none';
+        window.VoltLab.notify("Nesprávné heslo.");
       }
+    });
+  }
+
+  function showDashboard() {
+    $("admin-content").innerHTML = `
+      <div class="admin-tabs">
+        <button class="admin-tab ${activeTab === "articles" ? "active" : ""}" data-tab="articles">Články</button>
+        <button class="admin-tab ${activeTab === "projects" ? "active" : ""}" data-tab="projects">Projekty</button>
+      </div>
+      <div id="admin-editor"></div>
+      <div class="admin-form-actions" style="margin-top:20px">
+        <button class="button button-ghost" type="button" id="admin-reset">Obnovit výchozí obsah</button>
+        <button class="button button-ghost" type="button" id="admin-logout">Odhlásit se</button>
+      </div>
+      <p class="admin-warning">Změny se ukládají pouze v tomto prohlížeči. Na ostatních zařízeních se automaticky neprojeví.</p>
+    `;
+
+    $("admin-content").onclick = handleDashboardClick;
+    renderEditor();
+  }
+
+  function handleDashboardClick(event) {
+    const tab = event.target.closest("[data-tab]");
+    if (tab) {
+      activeTab = tab.dataset.tab;
+      showDashboard();
+      return;
     }
 
-    const sbUrlInput = document.getElementById('sb-url');
-    const sbKeyInput = document.getElementById('sb-anon-key');
-    if (sbUrlInput && this.store.supabaseConfig && !sbUrlInput.value) {
-      sbUrlInput.value = this.store.supabaseConfig.url;
-    }
-    if (sbKeyInput && this.store.supabaseConfig && !sbKeyInput.value) {
-      sbKeyInput.value = this.store.supabaseConfig.anonKey;
+    const remove = event.target.closest("[data-remove]");
+    if (remove) {
+      removeItem(remove.dataset.remove);
+      return;
     }
 
-    document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.adminTab === this.activeTab);
-    });
-    document.querySelectorAll('[data-admin-panel]').forEach((panel) => {
-      panel.style.display = panel.dataset.adminPanel === this.activeTab ? 'block' : 'none';
-    });
+    if (event.target.closest("#admin-reset")) {
+      if (confirm("Opravdu obnovit původní články a projekty?")) {
+        window.VoltLab.resetContent();
+        showDashboard();
+      }
+      return;
+    }
 
-    const catOptions = this.store.data.categories
-      .map((c) => `<option value="${c.id}">${c.name}</option>`)
-      .join('');
-    const artCatSelect = document.getElementById('art-category');
-    const projCatSelect = document.getElementById('proj-category');
-    if (artCatSelect) artCatSelect.innerHTML = catOptions;
-    if (projCatSelect) projCatSelect.innerHTML = catOptions;
-
-    this.renderArticlesTable();
-    this.renderProjectsTable();
-    this.renderCategoriesTable();
+    if (event.target.closest("#admin-logout")) {
+      sessionStorage.removeItem(storage.session);
+      showLogin();
+    }
   }
 
-  renderArticlesTable() {
-    const tbody = document.getElementById('admin-articles-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = this.store.data.articles
-      .map(
-        (art) => `
-      <tr>
-        <td><strong>${art.title}</strong></td>
-        <td><span class="badge">${art.category}</span></td>
-        <td>${art.date}</td>
-        <td>
-          <div style="display:flex;gap:0.4rem;">
-            <button type="button" class="btn btn-secondary btn-sm" data-edit-art="${art.id}">Upravit</button>
-            <button type="button" class="btn btn-danger btn-sm" data-del-art="${art.id}">Smazat</button>
-          </div>
-        </td>
-      </tr>`
-      )
-      .join('');
+  function renderEditor() {
+    const container = $("admin-editor");
+    if (!container) return;
 
-    tbody.querySelectorAll('[data-edit-art]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const art = this.store.data.articles.find((a) => a.id === btn.dataset.editArt);
-        if (!art) return;
-        this.editingArticleId = art.id;
-        document.getElementById('art-title').value = art.title;
-        document.getElementById('art-category').value = art.category;
-        document.getElementById('art-author').value = art.author;
-        document.getElementById('art-readtime').value = art.readTime;
-        document.getElementById('art-summary').value = art.summary;
-        document.getElementById('art-content').value = art.content.join('\n\n');
-        document.getElementById('art-tags').value = (art.tags || []).join(', ');
-        document.getElementById('art-submit-btn').textContent = 'Uložit změny článku';
-        document.getElementById('admin-article-form').scrollIntoView({ behavior: 'smooth' });
-      });
-    });
+    const items = activeTab === "articles" ? window.VoltLab.articles : window.VoltLab.projects;
 
-    tbody.querySelectorAll('[data-del-art]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (window.confirm('Opravdu chcete odstranit tento článek?')) {
-          try {
-            await this.store.deleteArticle(btn.dataset.delArt);
-            this.showToast('Článek byl odstraněn.');
-          } catch (err) {
-            this.showToast(err.message);
-          }
-        }
-      });
-    });
-  }
+    const list = items.map(item => `
+      <div class="admin-list-item">
+        <span>${escapeHTML(item.title)}</span>
+        <button type="button" data-remove="${escapeHTML(item.id)}">Smazat</button>
+      </div>
+    `).join("");
 
-  renderProjectsTable() {
-    const tbody = document.getElementById('admin-projects-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = this.store.data.projects
-      .map(
-        (proj) => `
-      <tr>
-        <td><strong>${proj.title}</strong></td>
-        <td><span class="badge badge-lime">${proj.status}</span></td>
-        <td>${proj.progress} %</td>
-        <td>
-          <div style="display:flex;gap:0.4rem;">
-            <button type="button" class="btn btn-secondary btn-sm" data-edit-proj="${proj.id}">Upravit</button>
-            <button type="button" class="btn btn-danger btn-sm" data-del-proj="${proj.id}">Smazat</button>
-          </div>
-        </td>
-      </tr>`
-      )
-      .join('');
+    container.innerHTML = `
+      <form class="admin-form" id="admin-add-form">
+        <label>Název
+          <input name="title" maxlength="90" required placeholder="Název obsahu">
+        </label>
+        <label>Kategorie
+          <select name="category">${categoryOptions()}</select>
+        </label>
+        <label>Krátký popis
+          <textarea name="description" maxlength="300" required placeholder="Krátký popis..."></textarea>
+        </label>
+        ${activeTab === "articles" ? `
+          <label>Obsah článku
+            <textarea name="content" required placeholder="Text článku..."></textarea>
+          </label>
+        ` : `
+          <label>Komponenty (každá na nový řádek)
+            <textarea name="components" placeholder="Arduino Uno&#10;LED&#10;Rezistor"></textarea>
+          </label>
+          <label>Postup (každý krok na nový řádek)
+            <textarea name="steps" placeholder="První krok&#10;Druhý krok"></textarea>
+          </label>
+          <label>Ukázkový kód
+            <textarea name="code" placeholder="// Tvůj kód"></textarea>
+          </label>
+        `}
+        <div class="admin-form-actions">
+          <button class="button button-primary" type="submit">Přidat ${activeTab === "articles" ? "článek" : "projekt"} +</button>
+        </div>
+      </form>
+      <h3 style="margin-top:24px">Existující obsah (${items.length})</h3>
+      <div class="admin-list">${list || "<p>Žádný obsah.</p>"}</div>
+    `;
 
-    tbody.querySelectorAll('[data-edit-proj]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const proj = this.store.data.projects.find((p) => p.id === btn.dataset.editProj);
-        if (!proj) return;
-        this.editingProjectId = proj.id;
-        document.getElementById('proj-title').value = proj.title;
-        document.getElementById('proj-category').value = proj.category;
-        document.getElementById('proj-status').value = proj.status;
-        document.getElementById('proj-difficulty').value = proj.difficulty;
-        document.getElementById('proj-progress').value = proj.progress;
-        document.getElementById('proj-summary').value = proj.summary;
-        document.getElementById('proj-specs').value = (proj.specs || []).join('\n');
-        document.getElementById('proj-repo').value = proj.repo || '';
-        document.getElementById('proj-submit-btn').textContent = 'Uložit změny projektu';
-        document.getElementById('admin-project-form').scrollIntoView({ behavior: 'smooth' });
-      });
-    });
+    $("admin-add-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const title = String(form.get("title")).trim();
+      const description = String(form.get("description")).trim();
+      const category = String(form.get("category"));
+      const id = `${activeTab === "articles" ? "article" : "project"}-${Date.now()}`;
 
-    tbody.querySelectorAll('[data-del-proj]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (window.confirm('Opravdu chcete odstranit tento projekt?')) {
-          try {
-            await this.store.deleteProject(btn.dataset.delProj);
-            this.showToast('Projekt byl odstraněn.');
-          } catch (err) {
-            this.showToast(err.message);
-          }
-        }
-      });
+      if (!title || !description) return;
+
+      if (activeTab === "articles") {
+        const updated = [...window.VoltLab.articles, {
+          id,
+          title,
+          category,
+          icon: "⌁",
+          readTime: "Nový článek",
+          excerpt: description,
+          content: String(form.get("content")).trim(),
+          tags: []
+        }];
+        window.VoltLab.saveArticles(updated);
+      } else {
+        const updated = [...window.VoltLab.projects, {
+          id,
+          title,
+          category,
+          icon: "⌁",
+          difficulty: "Vlastní projekt",
+          time: "Dle projektu",
+          description,
+          components: String(form.get("components") || "").split("\n").map(x => x.trim()).filter(Boolean),
+          steps: String(form.get("steps") || "").split("\n").map(x => x.trim()).filter(Boolean),
+          code: String(form.get("code") || ""),
+          note: ""
+        }];
+        window.VoltLab.saveProjects(updated);
+      }
+
+      window.VoltLab.notify("Obsah byl přidán.");
+      renderEditor();
     });
   }
 
-  renderCategoriesTable() {
-    const tbody = document.getElementById('admin-categories-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = this.store.data.categories
-      .map(
-        (cat) => `
-      <tr>
-        <td><strong>${cat.name}</strong></td>
-        <td><code>${cat.id}</code></td>
-        <td>${cat.description}</td>
-        <td>
-          <button type="button" class="btn btn-danger btn-sm" data-del-cat="${cat.id}">Smazat</button>
-        </td>
-      </tr>`
-      )
-      .join('');
+  function removeItem(id) {
+    if (!confirm("Opravdu chceš tento obsah smazat?")) return;
 
-    tbody.querySelectorAll('[data-del-cat]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (window.confirm('Smazat tuto kategorii?')) {
-          this.store.deleteCategory(btn.dataset.delCat);
-          this.showToast('Kategorie odstraněna.');
-        }
-      });
-    });
+    if (activeTab === "articles") {
+      window.VoltLab.saveArticles(window.VoltLab.articles.filter(item => item.id !== id));
+    } else {
+      window.VoltLab.saveProjects(window.VoltLab.projects.filter(item => item.id !== id));
+    }
+
+    window.VoltLab.notify("Obsah byl smazán.");
+    renderEditor();
   }
-}
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("admin-access")?.addEventListener("click", openModal);
+  });
+})();
