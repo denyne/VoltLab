@@ -1,421 +1,476 @@
 ```javascript
-/* =========================================================
-   VOLTLAB V3.1 — ENGINEERING CALCULATORS
-   Ohm's law · Electrical power · LED resistor
-   Unit converter · Resistor networks · Capacitor energy
-   ========================================================= */
+/*
+ * VoltLab V4 — Widgets Engine
+ * --------------------------------
+ * Šest technických kalkulaček:
+ * 1. Ohmův zákon
+ * 2. Elektrický výkon
+ * 3. LED rezistor
+ * 4. Převodník jednotek
+ * 5. Rezistorová síť
+ * 6. Energie kondenzátoru
+ *
+ * Kompatibilní s HTML prvky VoltLab V4.
+ */
 
 (() => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
+  const $ = id => document.getElementById(id);
 
-  // ---------------------------------------------------------
-  // NUMBER HELPERS
-  // ---------------------------------------------------------
+  const EPSILON = 1e-12;
 
-  function readNumber(id) {
+  // --------------------------------------------------
+  // ZÁKLADNÍ POMOCNÉ FUNKCE
+  // --------------------------------------------------
+
+  function parseNumber(value) {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : NaN;
+    }
+
+    const normalized = String(value ?? "")
+      .trim()
+      .replace(/\s/g, "")
+      .replace(",", ".");
+
+    if (!normalized) return NaN;
+
+    const result = Number(normalized);
+    return Number.isFinite(result) ? result : NaN;
+  }
+
+  function readInput(id) {
     const element = $(id);
-    if (!element) return null;
+    if (!element) return NaN;
 
-    const raw = element.value.trim().replace(",", ".");
-
-    if (raw === "") return null;
-
-    const value = Number(raw);
-
-    return Number.isFinite(value) ? value : NaN;
+    return parseNumber(element.value);
   }
 
-  function format(value, digits = 4) {
+  function readMultiplier(id) {
+    const element = $(id);
+    if (!element) return 1;
+
+    const multiplier = parseNumber(element.value);
+    return Number.isFinite(multiplier) && multiplier > 0
+      ? multiplier
+      : 1;
+  }
+
+  function formatNumber(value, digits = 4) {
     if (!Number.isFinite(value)) return "—";
 
-    return new Intl.NumberFormat("cs-CZ", {
-      maximumSignificantDigits: digits
-    }).format(value);
-  }
+    if (value === 0) return "0";
 
-  function formatAuto(value, unit = "Ω") {
-    if (!Number.isFinite(value)) return "—";
+    const absolute = Math.abs(value);
 
-    const abs = Math.abs(value);
-
-    if (unit === "Ω") {
-      if (abs >= 1_000_000) return `${format(value / 1_000_000)} MΩ`;
-      if (abs >= 1_000) return `${format(value / 1_000)} kΩ`;
-      if (abs > 0 && abs < 0.001) return `${format(value * 1_000_000)} µΩ`;
-      if (abs > 0 && abs < 1) return `${format(value * 1_000)} mΩ`;
+    if (absolute >= 1e9 || absolute < 1e-6) {
+      return value.toExponential(3).replace(".", ",");
     }
 
-    if (unit === "V") {
-      if (abs >= 1_000) return `${format(value / 1_000)} kV`;
-      if (abs > 0 && abs < 1) return `${format(value * 1_000)} mV`;
-    }
-
-    if (unit === "A") {
-      if (abs >= 1) return `${format(value)} A`;
-      if (abs >= 0.001) return `${format(value * 1_000)} mA`;
-      if (abs > 0) return `${format(value * 1_000_000)} µA`;
-    }
-
-    if (unit === "W") {
-      if (abs >= 1_000) return `${format(value / 1_000)} kW`;
-      if (abs >= 1) return `${format(value)} W`;
-      if (abs >= 0.001) return `${format(value * 1_000)} mW`;
-      if (abs > 0) return `${format(value * 1_000_000)} µW`;
-    }
-
-    return `${format(value)} ${unit}`;
+    return Number(value.toPrecision(digits))
+      .toLocaleString("cs-CZ", {
+        maximumFractionDigits: digits,
+        useGrouping: true
+      });
   }
 
-  function formatEnergy(value) {
-    if (value >= 1) return `${format(value)} J`;
-    if (value >= 0.001) return `${format(value * 1000)} mJ`;
-    if (value >= 0.000001) return `${format(value * 1_000_000)} µJ`;
-    return `${format(value * 1_000_000_000)} nJ`;
+  function formatWithUnit(value, unit, digits = 4) {
+    return `${formatNumber(value, digits)} ${unit}`;
   }
 
-  function formatCharge(value) {
-    if (value >= 1) return `${format(value)} C`;
-    if (value >= 0.001) return `${format(value * 1000)} mC`;
-    if (value >= 0.000001) return `${format(value * 1_000_000)} µC`;
-    return `${format(value * 1_000_000_000)} nC`;
+  function isPositive(value) {
+    return Number.isFinite(value) && value > 0;
   }
 
-  function showResult(id, message, isError = false) {
+  function isNonNegative(value) {
+    return Number.isFinite(value) && value >= 0;
+  }
+
+  function showResult(id, html, type = "success") {
     const element = $(id);
     if (!element) return;
 
-    element.textContent = message;
-    element.classList.toggle("has-result", !isError);
-    element.classList.toggle("has-error", isError);
+    element.innerHTML = html;
+    element.classList.remove(
+      "is-error",
+      "is-success",
+      "is-warning"
+    );
+    element.classList.add(`is-${type}`);
+    element.hidden = false;
   }
 
-  function bind(id, event, callback) {
+  function showError(id, message) {
+    showResult(
+      id,
+      `<strong>⚠️ ${escapeHTML(message)}</strong>`,
+      "error"
+    );
+  }
+
+  function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+  }
+
+  function bindClick(id, callback) {
     const element = $(id);
+    if (!element) return;
 
-    if (element) {
-      element.addEventListener(event, callback);
-    }
-  }
-
-  function positive(value, label) {
-    if (value === null || !Number.isFinite(value) || value <= 0) {
-      throw new Error(`${label} musí být kladné číslo.`);
-    }
-
-    return value;
-  }
-
-  function nonNegative(value, label) {
-    if (value === null || !Number.isFinite(value) || value < 0) {
-      throw new Error(`${label} nesmí být záporné.`);
-    }
-
-    return value;
-  }
-
-  function runCalculation(resultId, callback) {
-    try {
+    element.addEventListener("click", event => {
+      event.preventDefault();
       callback();
-    } catch (error) {
-      showResult(
-        resultId,
-        error.message || "Zkontroluj zadané hodnoty.",
-        true
+    });
+  }
+
+  function bindEnter(ids, callback) {
+    ids.forEach(id => {
+      const element = $(id);
+      if (!element) return;
+
+      element.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          callback();
+        }
+      });
+    });
+  }
+
+  function getSelectedText(id) {
+    const element = $(id);
+    if (!element) return "";
+
+    return element.options?.[element.selectedIndex]?.text || "";
+  }
+
+  // --------------------------------------------------
+  // 1. OHMŮV ZÁKON
+  // --------------------------------------------------
+
+  function calculateOhm() {
+    const voltageRaw = readInput("ohm-voltage");
+    const currentRaw = readInput("ohm-current");
+    const resistanceRaw = readInput("ohm-resistance");
+
+    const voltageUnit = readMultiplier("ohm-voltage-unit");
+    const currentUnit = readMultiplier("ohm-current-unit");
+    const resistanceUnit = readMultiplier("ohm-resistance-unit");
+
+    const voltage = Number.isFinite(voltageRaw)
+      ? voltageRaw * voltageUnit
+      : NaN;
+
+    const current = Number.isFinite(currentRaw)
+      ? currentRaw * currentUnit
+      : NaN;
+
+    const resistance = Number.isFinite(resistanceRaw)
+      ? resistanceRaw * resistanceUnit
+      : NaN;
+
+    const known = [
+      Number.isFinite(voltage),
+      Number.isFinite(current),
+      Number.isFinite(resistance)
+    ].filter(Boolean).length;
+
+    if (known !== 2) {
+      showError(
+        "ohm-result",
+        "Vyplň přesně dvě hodnoty. Třetí veličina se vypočítá."
       );
+      return;
     }
-  }
 
-  // ---------------------------------------------------------
-  // UNIT CONVERTER
-  // ---------------------------------------------------------
-
-  const unitFactors = {
-    voltage: {
-      V: 1,
-      mV: 0.001,
-      kV: 1000
-    },
-
-    current: {
-      A: 1,
-      mA: 0.001,
-      µA: 0.000001
-    },
-
-    resistance: {
-      "Ω": 1,
-      kΩ: 1000,
-      MΩ: 1000000
-    },
-
-    capacitance: {
-      F: 1,
-      mF: 0.001,
-      µF: 0.000001,
-      nF: 0.000000001,
-      pF: 0.000000000001
-    },
-
-    power: {
-      W: 1,
-      mW: 0.001,
-      kW: 1000
-    },
-
-    time: {
-      s: 1,
-      ms: 0.001,
-      min: 60,
-      h: 3600
-    },
-
-    frequency: {
-      Hz: 1,
-      kHz: 1000,
-      MHz: 1000000,
-      GHz: 1000000000
+    if (
+      (Number.isFinite(voltage) && voltage < 0) ||
+      (Number.isFinite(current) && current < 0) ||
+      (Number.isFinite(resistance) && resistance <= 0)
+    ) {
+      showError(
+        "ohm-result",
+        "Napětí a proud nesmí být záporné. Odpor musí být větší než nula."
+      );
+      return;
     }
-  };
 
-  const conversionUnits = {
-    voltage: ["V", "mV", "kV"],
-    current: ["A", "mA", "µA"],
-    resistance: ["Ω", "kΩ", "MΩ"],
-    capacitance: ["F", "mF", "µF", "nF", "pF"],
-    power: ["W", "mW", "kW"],
-    time: ["s", "ms", "min", "h"],
-    frequency: ["Hz", "kHz", "MHz", "GHz"]
-  };
+    let resultVoltage = voltage;
+    let resultCurrent = current;
+    let resultResistance = resistance;
 
-  function initConverter() {
-    const type = $("convert-type");
-    const from = $("convert-from");
-    const to = $("convert-to");
+    if (!Number.isFinite(voltage)) {
+      resultVoltage = current * resistance;
+    }
 
-    if (!type || !from || !to) return;
-
-    function updateOptions() {
-      const units = conversionUnits[type.value] || [];
-
-      from.replaceChildren();
-      to.replaceChildren();
-
-      units.forEach((unit) => {
-        from.add(new Option(unit, unit));
-        to.add(new Option(unit, unit));
-      });
-
-      if (units.length > 1) {
-        from.value = units[0];
-        to.value = units[1];
+    if (!Number.isFinite(current)) {
+      if (resistance <= EPSILON) {
+        showError("ohm-result", "Odpor musí být větší než nula.");
+        return;
       }
+
+      resultCurrent = voltage / resistance;
     }
 
-    updateOptions();
-
-    bind("convert-type", "change", updateOptions);
-
-    bind("convert-calculate", "click", () => {
-      runCalculation("convert-result", () => {
-        const value = readNumber("convert-value");
-
-        if (value === null || !Number.isFinite(value)) {
-          throw new Error("Zadej platnou hodnotu.");
-        }
-
-        const factors = unitFactors[type.value];
-
-        const source = factors?.[from.value];
-        const target = factors?.[to.value];
-
-        if (source === undefined || target === undefined) {
-          throw new Error("Vybrané jednotky nejsou podporované.");
-        }
-
-        const result = value * source / target;
-
-        if (!Number.isFinite(result)) {
-          throw new Error("Výsledek je mimo rozsah kalkulačky.");
-        }
-
-        showResult(
-          "convert-result",
-          `${format(value)} ${from.value} = ${format(result)} ${to.value}`
+    if (!Number.isFinite(resistance)) {
+      if (current <= EPSILON) {
+        showError(
+          "ohm-result",
+          "Pro výpočet odporu musí být proud větší než nula."
         );
-      });
-    });
-  }
+        return;
+      }
 
-  // ---------------------------------------------------------
-  // OHM'S LAW
-  // ---------------------------------------------------------
-
-  function initOhm() {
-    bind("ohm-calculate", "click", () => {
-      runCalculation("ohm-result", () => {
-        const voltage = readNumber("ohm-voltage");
-        const current = readNumber("ohm-current");
-        const resistance = readNumber("ohm-resistance");
-
-        const filled = [
-          voltage,
-          current,
-          resistance
-        ].filter((value) => value !== null);
-
-        if (filled.length !== 2) {
-          throw new Error(
-            "Vyplň přesně dvě hodnoty. Třetí dopočítáme."
-          );
-        }
-
-        if (voltage !== null) positive(voltage, "Napětí");
-        if (current !== null) positive(current, "Proud");
-        if (resistance !== null) positive(resistance, "Odpor");
-
-        // Select values are numeric multipliers.
-        const voltageFactor = Number($("ohm-voltage-unit")?.value ?? 1);
-        const currentFactor = Number($("ohm-current-unit")?.value ?? 1);
-        const resistanceFactor = Number($("ohm-resistance-unit")?.value ?? 1);
-
-        const V = voltage === null ? null : voltage * voltageFactor;
-        const I = current === null ? null : current * currentFactor;
-        const R = resistance === null ? null : resistance * resistanceFactor;
-
-        let message;
-
-        if (V === null) {
-          const result = I * R;
-          message = `Napětí: ${formatAuto(result, "V")}`;
-        } else if (I === null) {
-          const result = V / R;
-          message = `Proud: ${formatAuto(result, "A")}`;
-        } else {
-          const result = V / I;
-          message = `Odpor: ${formatAuto(result, "Ω")}`;
-        }
-
-        showResult("ohm-result", message);
-      });
-    });
-  }
-
-  // ---------------------------------------------------------
-  // ELECTRICAL POWER
-  // ---------------------------------------------------------
-
-  function initPower() {
-    bind("power-calculate", "click", () => {
-      runCalculation("power-result", () => {
-        const target = $("power-target")?.value || "power";
-
-        const voltageInput = readNumber("power-voltage");
-        const currentInput = readNumber("power-current");
-        const wattsInput = readNumber("power-watts");
-
-        // Select values are numeric multipliers.
-        const voltageFactor = Number($("power-voltage-unit")?.value ?? 1);
-        const currentFactor = Number($("power-current-unit")?.value ?? 1);
-        const powerFactor = Number($("power-watts-unit")?.value ?? 1);
-
-        const V = voltageInput === null
-          ? null
-          : voltageInput * voltageFactor;
-
-        const I = currentInput === null
-          ? null
-          : currentInput * currentFactor;
-
-        const P = wattsInput === null
-          ? null
-          : wattsInput * powerFactor;
-
-        const values = {
-          voltage: V,
-          current: I,
-          power: P
-        };
-
-        const missing = Object.keys(values).filter(
-          (key) => values[key] === null
-        );
-
-        if (missing.length !== 1 || missing[0] !== target) {
-          throw new Error(
-            "Vyber veličinu k výpočtu a vyplň zbývající dvě hodnoty."
-          );
-        }
-
-        Object.entries(values).forEach(([key, value]) => {
-          if (key !== target) {
-            positive(value, "Zadaná hodnota");
-          }
-        });
-
-        let result;
-        let message;
-
-        if (target === "power") {
-          result = V * I;
-          message = `Výkon: ${formatAuto(result, "W")}`;
-        } else if (target === "voltage") {
-          result = P / I;
-          message = `Napětí: ${formatAuto(result, "V")}`;
-        } else if (target === "current") {
-          result = P / V;
-          message = `Proud: ${formatAuto(result, "A")}`;
-        } else {
-          throw new Error("Neznámá veličina k výpočtu.");
-        }
-
-        if (!Number.isFinite(result)) {
-          throw new Error("Výsledek nelze vypočítat.");
-        }
-
-        showResult("power-result", message);
-      });
-    });
-  }
-
-  // ---------------------------------------------------------
-  // LED RESISTOR CALCULATOR
-  // ---------------------------------------------------------
-
-  function nearestE12Above(value) {
-    const e12 = [
-      1.0, 1.2, 1.5, 1.8, 2.2, 2.7,
-      3.3, 3.9, 4.7, 5.6, 6.8, 8.2
-    ];
-
-    if (!Number.isFinite(value) || value <= 0) {
-      return null;
+      resultResistance = voltage / current;
     }
+
+    if (
+      !Number.isFinite(resultVoltage) ||
+      !Number.isFinite(resultCurrent) ||
+      !Number.isFinite(resultResistance)
+    ) {
+      showError("ohm-result", "Výsledek nelze vypočítat.");
+      return;
+    }
+
+    const power = resultVoltage * resultCurrent;
+
+    showResult(
+      "ohm-result",
+      `
+        <div class="widget-result-main">
+          <span>Výsledek</span>
+          <strong>${formatWithUnit(resultVoltage, "V")}</strong>
+        </div>
+
+        <div class="widget-result-grid">
+          <div>
+            <span>Napětí</span>
+            <strong>${formatWithUnit(resultVoltage, "V")}</strong>
+          </div>
+          <div>
+            <span>Proud</span>
+            <strong>${formatWithUnit(resultCurrent, "A")}</strong>
+          </div>
+          <div>
+            <span>Odpor</span>
+            <strong>${formatWithUnit(resultResistance, "Ω")}</strong>
+          </div>
+          <div>
+            <span>Výkon</span>
+            <strong>${formatWithUnit(power, "W")}</strong>
+          </div>
+        </div>
+
+        <p class="widget-result-note">
+          Použitý vztah: U = R × I
+        </p>
+      `
+    );
+  }
+
+  // --------------------------------------------------
+  // 2. ELEKTRICKÝ VÝKON
+  // --------------------------------------------------
+
+  function calculatePower() {
+    const target = $("power-target")?.value || "watts";
+
+    const voltageRaw = readInput("power-voltage");
+    const currentRaw = readInput("power-current");
+    const wattsRaw = readInput("power-watts");
+
+    const voltage = Number.isFinite(voltageRaw)
+      ? voltageRaw * readMultiplier("power-voltage-unit")
+      : NaN;
+
+    const current = Number.isFinite(currentRaw)
+      ? currentRaw * readMultiplier("power-current-unit")
+      : NaN;
+
+    const watts = Number.isFinite(wattsRaw)
+      ? wattsRaw * readMultiplier("power-watts-unit")
+      : NaN;
+
+    const values = { voltage, current, watts };
+
+    if (!Object.prototype.hasOwnProperty.call(values, target)) {
+      showError("power-result", "Neplatný typ výpočtu.");
+      return;
+    }
+
+    const otherValues = Object.entries(values)
+      .filter(([key]) => key !== target)
+      .map(([, value]) => value);
+
+    if (!otherValues.every(Number.isFinite)) {
+      showError(
+        "power-result",
+        "Vyplň dvě známé hodnoty. Třetí se vypočítá."
+      );
+      return;
+    }
+
+    if (otherValues.some(value => value < 0)) {
+      showError(
+        "power-result",
+        "Vstupní hodnoty nesmí být záporné."
+      );
+      return;
+    }
+
+    let resultVoltage = voltage;
+    let resultCurrent = current;
+    let resultWatts = watts;
+
+    if (target === "watts") {
+      resultWatts = voltage * current;
+    }
+
+    if (target === "voltage") {
+      if (current <= EPSILON) {
+        showError(
+          "power-result",
+          "Proud musí být větší než nula."
+        );
+        return;
+      }
+
+      resultVoltage = watts / current;
+    }
+
+    if (target === "current") {
+      if (voltage <= EPSILON) {
+        showError(
+          "power-result",
+          "Napětí musí být větší než nula."
+        );
+        return;
+      }
+
+      resultCurrent = watts / voltage;
+    }
+
+    if (
+      !Number.isFinite(resultVoltage) ||
+      !Number.isFinite(resultCurrent) ||
+      !Number.isFinite(resultWatts)
+    ) {
+      showError("power-result", "Výsledek nelze vypočítat.");
+      return;
+    }
+
+    showResult(
+      "power-result",
+      `
+        <div class="widget-result-main">
+          <span>Elektrický výkon</span>
+          <strong>${formatWithUnit(resultWatts, "W")}</strong>
+        </div>
+
+        <div class="widget-result-grid">
+          <div>
+            <span>Napětí</span>
+            <strong>${formatWithUnit(resultVoltage, "V")}</strong>
+          </div>
+          <div>
+            <span>Proud</span>
+            <strong>${formatWithUnit(resultCurrent, "A")}</strong>
+          </div>
+          <div>
+            <span>Výkon</span>
+            <strong>${formatWithUnit(resultWatts, "W")}</strong>
+          </div>
+        </div>
+
+        <p class="widget-result-note">
+          Použitý vztah: P = U × I
+        </p>
+      `
+    );
+  }
+
+  // --------------------------------------------------
+  // 3. LED REZISTOR
+  // --------------------------------------------------
+
+  const E12 = [
+    10, 12, 15, 18, 22, 27,
+    33, 39, 47, 56, 68, 82
+  ];
+
+  function nextE12(value) {
+    if (!isPositive(value)) return null;
 
     const exponent = Math.floor(Math.log10(value));
+    const base = Math.pow(10, exponent);
+    const normalized = value / base;
 
-    for (let scale = exponent - 1; scale <= exponent + 2; scale++) {
-      const multiplier = Math.pow(10, scale);
-
-      for (const number of e12) {
-        const candidate = number * multiplier;
-
-        if (candidate >= value) {
-          return candidate;
-        }
+    for (const standard of E12) {
+      if (standard >= normalized - EPSILON) {
+        return standard * base;
       }
     }
 
-    return null;
+    return 10 * base;
   }
 
-  function recommendedResistorPower(power) {
-    // Conservative recommendation: choose a rating at least
-    // twice the calculated dissipation.
-    const required = power * 2;
+  function calculateLED() {
+    const supply = readInput("led-supply");
+    const forward = readInput("led-forward");
+    const currentMA = readInput("led-current");
 
-    const ratings = [
+    if (
+      !isPositive(supply) ||
+      !isNonNegative(forward) ||
+      !isPositive(currentMA)
+    ) {
+      showError(
+        "led-result",
+        "Zadej platné napětí zdroje, úbytek LED a proud."
+      );
+      return;
+    }
+
+    if (forward >= supply) {
+      showError(
+        "led-result",
+        "Napětí zdroje musí být vyšší než úbytek napětí LED."
+      );
+      return;
+    }
+
+    const current = currentMA / 1000;
+    const voltageOnResistor = supply - forward;
+
+    const exactResistance = voltageOnResistor / current;
+    const standardResistance = nextE12(exactResistance);
+
+    if (!standardResistance) {
+      showError(
+        "led-result",
+        "Nepodařilo se najít vhodnou hodnotu rezistoru."
+      );
+      return;
+    }
+
+    const actualCurrent =
+      voltageOnResistor / standardResistance;
+
+    const resistorPower =
+      voltageOnResistor * actualCurrent;
+
+    const recommendedPower = resistorPower * 2;
+
+    const powerOptions = [
+      0.0625,
+      0.1,
       0.125,
       0.25,
       0.5,
@@ -423,213 +478,493 @@
       2,
       3,
       5,
-      10,
-      15,
-      20,
-      25,
-      50,
-      100
+      10
     ];
 
-    return ratings.find((rating) => rating >= required)
-      || Math.ceil(required);
+    const selectedPower =
+      powerOptions.find(power => power >= recommendedPower) ||
+      null;
+
+    showResult(
+      "led-result",
+      `
+        <div class="widget-result-main">
+          <span>Doporučený rezistor</span>
+          <strong>${formatWithUnit(standardResistance, "Ω")}</strong>
+        </div>
+
+        <div class="widget-result-grid">
+          <div>
+            <span>Přesná vypočtená hodnota</span>
+            <strong>${formatWithUnit(exactResistance, "Ω")}</strong>
+          </div>
+
+          <div>
+            <span>Skutečný proud</span>
+            <strong>${formatWithUnit(actualCurrent * 1000, "mA")}</strong>
+          </div>
+
+          <div>
+            <span>Ztrátový výkon</span>
+            <strong>${formatWithUnit(resistorPower, "W")}</strong>
+          </div>
+
+          <div>
+            <span>Doporučený výkon rezistoru</span>
+            <strong>
+              ${selectedPower
+                ? formatWithUnit(selectedPower, "W")
+                : "Vyžaduje výkonnější součástku"}
+            </strong>
+          </div>
+        </div>
+
+        <p class="widget-result-note">
+          Použitý vztah: R = (Uzdroj − ULED) / I
+        </p>
+
+        <p class="widget-result-note">
+          Výběr odporu používá řadu E12. Doporučený výkon počítá
+          s přibližně dvojnásobnou rezervou.
+        </p>
+      `
+    );
   }
 
-  function initLed() {
-    bind("led-calculate", "click", () => {
-      runCalculation("led-result", () => {
-        const supply = positive(
-          readNumber("led-supply"),
-          "Napájecí napětí"
-        );
+  // --------------------------------------------------
+  // 4. PŘEVODNÍK JEDNOTEK
+  // --------------------------------------------------
 
-        const forward = nonNegative(
-          readNumber("led-forward"),
-          "Úbytek LED"
-        );
+  const conversionUnits = {
+    voltage: {
+      V: 1,
+      mV: 1e-3,
+      µV: 1e-6,
+      kV: 1e3
+    },
 
-        const current = positive(
-          readNumber("led-current"),
-          "Proud LED"
-        );
+    current: {
+      A: 1,
+      mA: 1e-3,
+      µA: 1e-6,
+      kA: 1e3
+    },
 
-        if (supply <= forward) {
-          throw new Error(
-            "Napájecí napětí musí být vyšší než napětí LED."
-          );
-        }
+    power: {
+      W: 1,
+      mW: 1e-3,
+      µW: 1e-6,
+      kW: 1e3,
+      MW: 1e6
+    },
 
-        const currentA = current / 1000;
+    resistance: {
+      "Ω": 1,
+      "kΩ": 1e3,
+      "MΩ": 1e6,
+      "mΩ": 1e-3
+    },
 
-        const idealResistance = (supply - forward) / currentA;
+    capacitance: {
+      F: 1,
+      mF: 1e-3,
+      "µF": 1e-6,
+      nF: 1e-9,
+      pF: 1e-12
+    },
 
-        const standardResistance = nearestE12Above(idealResistance);
+    time: {
+      s: 1,
+      ms: 1e-3,
+      "µs": 1e-6,
+      min: 60,
+      h: 3600
+    },
 
-        if (!standardResistance) {
-          throw new Error("Požadovaný odpor je mimo rozsah kalkulačky.");
-        }
+    frequency: {
+      Hz: 1,
+      kHz: 1e3,
+      MHz: 1e6,
+      GHz: 1e9
+    }
+  };
 
-        const actualCurrent = (supply - forward) / standardResistance;
+  function updateConverterOptions() {
+    const typeElement = $("convert-type");
+    const fromElement = $("convert-from");
+    const toElement = $("convert-to");
 
-        const resistorPower =
-          Math.pow(supply - forward, 2) / standardResistance;
+    if (!typeElement || !fromElement || !toElement) return;
 
-        const recommendedPower = recommendedResistorPower(resistorPower);
+    const type = typeElement.value;
+    const units = conversionUnits[type];
 
-        showResult(
-          "led-result",
-          `Ideální odpor: ${formatAuto(idealResistance, "Ω")}\n` +
-          `Doporučený E12 odpor: ${formatAuto(standardResistance, "Ω")}\n` +
-          `Skutečný proud: ${formatAuto(actualCurrent, "A")}\n` +
-          `Ztrátový výkon: ${formatAuto(resistorPower, "W")}\n` +
-          `Doporučený výkon rezistoru: alespoň ${format(recommendedPower)} W`
-        );
+    if (!units) return;
+
+    const previousFrom = fromElement.value;
+    const previousTo = toElement.value;
+
+    const options = Object.keys(units);
+
+    function populate(select, preferred) {
+      select.innerHTML = "";
+
+      options.forEach(unit => {
+        const option = document.createElement("option");
+        option.value = unit;
+        option.textContent = unit;
+        select.appendChild(option);
       });
-    });
+
+      if (options.includes(preferred)) {
+        select.value = preferred;
+      }
+    }
+
+    populate(fromElement, previousFrom);
+    populate(toElement, previousTo);
+
+    if (fromElement.value === toElement.value && options.length > 1) {
+      toElement.value = options[1];
+    }
   }
 
-  // ---------------------------------------------------------
-  // RESISTOR NETWORKS
-  // ---------------------------------------------------------
+  function calculateConversion() {
+    const type = $("convert-type")?.value;
+    const value = readInput("convert-value");
+
+    const from = $("convert-from")?.value;
+    const to = $("convert-to")?.value;
+
+    const units = conversionUnits[type];
+
+    if (!units || !(from in units) || !(to in units)) {
+      showError(
+        "convert-result",
+        "Vyber platnou kategorii a jednotky."
+      );
+      return;
+    }
+
+    if (!Number.isFinite(value)) {
+      showError(
+        "convert-result",
+        "Zadej hodnotu, kterou chceš převést."
+      );
+      return;
+    }
+
+    const result = value * units[from] / units[to];
+
+    if (!Number.isFinite(result)) {
+      showError(
+        "convert-result",
+        "Výsledek převodu je mimo podporovaný rozsah."
+      );
+      return;
+    }
+
+    showResult(
+      "convert-result",
+      `
+        <div class="widget-result-main">
+          <span>Výsledek převodu</span>
+          <strong>${formatNumber(result, 7)} ${escapeHTML(to)}</strong>
+        </div>
+
+        <p class="widget-result-note">
+          ${formatNumber(value, 7)} ${escapeHTML(from)}
+          = ${formatNumber(result, 7)} ${escapeHTML(to)}
+        </p>
+      `
+    );
+  }
+
+  // --------------------------------------------------
+  // 5. REZISTOROVÁ SÍŤ
+  // --------------------------------------------------
 
   function parseResistorValues(raw) {
-    const input = raw.trim();
+    const text = String(raw || "").trim();
 
-    if (!input) return [];
+    if (!text) return [];
+
+    /*
+     * Podporované formáty:
+     * 100, 220, 330
+     * 100; 220; 330
+     * 1,5; 2,5; 3,5
+     *
+     * Čárka může být oddělovač položek,
+     * nebo desetinný oddělovač.
+     */
 
     let parts;
 
-    if (input.includes(";")) {
-      // Semicolon allows decimal commas:
-      // 1,5; 2,5; 3,5
-      parts = input.split(";");
-      parts = parts.map((item) => item.trim().replace(",", "."));
+    if (text.includes(";")) {
+      parts = text.split(";");
     } else {
-      // Commas or spaces separate individual resistors:
-      // 100, 220, 330
-      parts = input.split(/[,\s]+/).map((item) => item.trim());
+      parts = text.split(/[,\s]+/);
     }
 
     return parts
-      .filter(Boolean)
-      .map((item) => Number(item));
+      .map(part => parseNumber(part))
+      .filter(value => Number.isFinite(value));
   }
 
-  function initResistors() {
-    bind("resistor-calculate", "click", () => {
-      runCalculation("resistor-result", () => {
-        const raw = $("resistor-values")?.value || "";
+  function calculateResistorNetwork() {
+    const mode = $("resistor-mode")?.value || "series";
+    const raw = $("resistor-values")?.value || "";
 
-        const values = parseResistorValues(raw);
+    const values = parseResistorValues(raw);
 
-        if (values.length < 2) {
-          throw new Error(
-            "Zadej alespoň dva odpory oddělené čárkou nebo středníkem."
-          );
-        }
+    if (values.length < 2) {
+      showError(
+        "resistor-result",
+        "Zadej alespoň dva odpory. Odděluj je čárkou nebo středníkem."
+      );
+      return;
+    }
 
-        if (values.some(
-          (value) => !Number.isFinite(value) || value <= 0
-        )) {
-          throw new Error(
-            "Všechny odpory musí být kladná čísla."
-          );
-        }
+    if (values.some(value => !isPositive(value))) {
+      showError(
+        "resistor-result",
+        "Všechny odpory musí být větší než nula."
+      );
+      return;
+    }
 
-        const mode = $("resistor-mode")?.value || "series";
+    if (values.length > 100) {
+      showError(
+        "resistor-result",
+        "Pro jeden výpočet můžeš zadat maximálně 100 rezistorů."
+      );
+      return;
+    }
 
-        let result;
+    let total;
 
-        if (mode === "parallel") {
-          result = 1 / values.reduce(
-            (sum, value) => sum + 1 / value,
-            0
-          );
-        } else if (mode === "series") {
-          result = values.reduce(
-            (sum, value) => sum + value,
-            0
-          );
-        } else {
-          throw new Error("Neznámý typ zapojení.");
-        }
+    if (mode === "parallel") {
+      const reciprocalSum = values.reduce(
+        (sum, value) => sum + 1 / value,
+        0
+      );
 
-        if (!Number.isFinite(result) || result <= 0) {
-          throw new Error("Výsledný odpor nelze vypočítat.");
-        }
+      total = 1 / reciprocalSum;
+    } else {
+      total = values.reduce(
+        (sum, value) => sum + value,
+        0
+      );
+    }
 
-        const label = mode === "parallel"
-          ? "Výsledný paralelní odpor"
-          : "Výsledný sériový odpor";
+    if (!Number.isFinite(total)) {
+      showError(
+        "resistor-result",
+        "Výsledek je mimo podporovaný rozsah."
+      );
+      return;
+    }
 
-        showResult(
-          "resistor-result",
-          `${label}: ${formatAuto(result, "Ω")}\n` +
-          `Počet rezistorů: ${values.length}`
-        );
-      });
-    });
+    const operationName =
+      mode === "parallel"
+        ? "Paralelní zapojení"
+        : "Sériové zapojení";
+
+    const formula =
+      mode === "parallel"
+        ? "1/R = 1/R₁ + 1/R₂ + ..."
+        : "R = R₁ + R₂ + ...";
+
+    showResult(
+      "resistor-result",
+      `
+        <div class="widget-result-main">
+          <span>Celkový odpor</span>
+          <strong>${formatWithUnit(total, "Ω")}</strong>
+        </div>
+
+        <div class="widget-result-grid">
+          <div>
+            <span>Typ zapojení</span>
+            <strong>${operationName}</strong>
+          </div>
+
+          <div>
+            <span>Počet rezistorů</span>
+            <strong>${values.length}</strong>
+          </div>
+        </div>
+
+        <p class="widget-result-note">
+          Použitý vztah: ${formula}
+        </p>
+
+        <p class="widget-result-note">
+          Vstupní hodnoty:
+          ${values.map(value => formatNumber(value) + " Ω").join(", ")}
+        </p>
+      `
+    );
   }
 
-  // ---------------------------------------------------------
-  // CAPACITOR ENERGY
-  // ---------------------------------------------------------
+  // --------------------------------------------------
+  // 6. ENERGIE KONDENZÁTORU
+  // --------------------------------------------------
 
-  function initCapacitor() {
-    bind("cap-energy-calculate", "click", () => {
-      runCalculation("cap-energy-result", () => {
-        const capacitance = positive(
-          readNumber("cap-energy-capacitance"),
-          "Kapacita"
-        );
+  function calculateCapacitorEnergy() {
+    const capacitanceUF = readInput("cap-energy-capacitance");
+    const voltage = readInput("cap-energy-voltage");
 
-        const voltage = nonNegative(
-          readNumber("cap-energy-voltage"),
-          "Napětí"
-        );
+    if (!isPositive(capacitanceUF) || !isNonNegative(voltage)) {
+      showError(
+        "cap-energy-result",
+        "Zadej platnou kapacitu a nezáporné napětí."
+      );
+      return;
+    }
 
-        // Input capacitance is in µF.
-        const capacitanceF = capacitance * 0.000001;
+    const capacitance = capacitanceUF * 1e-6;
 
-        // E = 1/2 × C × U²
-        const energy =
-          0.5 * capacitanceF * voltage * voltage;
+    const energy =
+      0.5 * capacitance * voltage * voltage;
 
-        // Q = C × U
-        const charge =
-          capacitanceF * voltage;
+    const charge =
+      capacitance * voltage;
 
-        if (!Number.isFinite(energy) || !Number.isFinite(charge)) {
-          throw new Error("Výsledek je mimo rozsah kalkulačky.");
-        }
+    const capacitanceNF = capacitance * 1e9;
+    const chargeMicroC = charge * 1e6;
+    const energyMicroJ = energy * 1e6;
 
-        showResult(
-          "cap-energy-result",
-          `Energie: ${formatEnergy(energy)}\n` +
-          `Náboj: ${formatCharge(charge)}`
-        );
-      });
-    });
+    showResult(
+      "cap-energy-result",
+      `
+        <div class="widget-result-main">
+          <span>Uložená energie</span>
+          <strong>${formatWithUnit(energyMicroJ, "µJ")}</strong>
+        </div>
+
+        <div class="widget-result-grid">
+          <div>
+            <span>Kapacita</span>
+            <strong>${formatWithUnit(capacitanceNF, "nF")}</strong>
+          </div>
+
+          <div>
+            <span>Náboj</span>
+            <strong>${formatWithUnit(chargeMicroC, "µC")}</strong>
+          </div>
+
+          <div>
+            <span>Energie</span>
+            <strong>${formatWithUnit(energy, "J")}</strong>
+          </div>
+
+          <div>
+            <span>Napětí</span>
+            <strong>${formatWithUnit(voltage, "V")}</strong>
+          </div>
+        </div>
+
+        <p class="widget-result-note">
+          Použitý vztah: E = ½ × C × U²
+        </p>
+      `
+    );
   }
 
-  // ---------------------------------------------------------
-  // INITIALIZATION
-  // ---------------------------------------------------------
+  // --------------------------------------------------
+  // INICIALIZACE
+  // --------------------------------------------------
 
-  function init() {
-    initOhm();
-    initPower();
-    initLed();
-    initConverter();
-    initResistors();
-    initCapacitor();
+  function initWidgets() {
+    // Ohmův zákon
+    bindClick("ohm-calculate", calculateOhm);
+    bindEnter(
+      ["ohm-voltage", "ohm-current", "ohm-resistance"],
+      calculateOhm
+    );
+
+    // Elektrický výkon
+    bindClick("power-calculate", calculatePower);
+    bindEnter(
+      ["power-voltage", "power-current", "power-watts"],
+      calculatePower
+    );
+
+    // LED rezistor
+    bindClick("led-calculate", calculateLED);
+    bindEnter(
+      ["led-supply", "led-forward", "led-current"],
+      calculateLED
+    );
+
+    // Převodník
+    const convertType = $("convert-type");
+
+    if (convertType) {
+      convertType.addEventListener(
+        "change",
+        updateConverterOptions
+      );
+
+      updateConverterOptions();
+    }
+
+    bindClick("convert-calculate", calculateConversion);
+    bindEnter(["convert-value"], calculateConversion);
+
+    // Rezistorová síť
+    bindClick(
+      "resistor-calculate",
+      calculateResistorNetwork
+    );
+
+    bindEnter(
+      ["resistor-values"],
+      calculateResistorNetwork
+    );
+
+    // Energie kondenzátoru
+    bindClick(
+      "cap-energy-calculate",
+      calculateCapacitorEnergy
+    );
+
+    bindEnter(
+      ["cap-energy-capacitance", "cap-energy-voltage"],
+      calculateCapacitorEnergy
+    );
+
+    console.info("VoltLab V4: Widgets initialized.");
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
+    document.addEventListener(
+      "DOMContentLoaded",
+      initWidgets,
+      { once: true }
+    );
   } else {
-    init();
+    initWidgets();
   }
+
+  // --------------------------------------------------
+  // VEŘEJNÉ API
+  // --------------------------------------------------
+
+  window.VoltLabWidgets = {
+    calculateOhm,
+    calculatePower,
+    calculateLED,
+    calculateConversion,
+    calculateResistorNetwork,
+    calculateCapacitorEnergy,
+
+    updateConverterOptions,
+
+    version: "4.0"
+  };
 
 })();
 ```
