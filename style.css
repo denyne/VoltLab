@@ -599,3 +599,201 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* VOLTLAB ADMIN — EXTENDED PANEL */
+
+.admin-kicker {
+  display: block;
+  color: var(--accent-2);
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  margin-bottom: 7px;
+}
+
+.admin-description {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.admin-section-heading {
+  margin: 24px 0 20px;
+}
+
+.admin-section-heading h3 {
+  font-size: 23px;
+  margin: 0 0 7px;
+}
+
+.admin-section-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.admin-stat,
+.admin-overview-panel {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.admin-stat span,
+.admin-stat small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-stat strong {
+  display: block;
+  color: var(--accent);
+  font-size: 30px;
+  margin: 8px 0;
+}
+
+.admin-stat small {
+  font-size: 10px;
+}
+
+.admin-overview-panel {
+  margin-top: 14px;
+}
+
+.admin-overview-panel h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+.admin-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.admin-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 28px 0 12px;
+}
+
+.admin-list-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.admin-list-heading input {
+  width: min(220px, 48%);
+}
+
+.admin-list-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-list-copy strong {
+  font-size: 13px;
+}
+
+.admin-list-copy small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-item-actions {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.admin-item-actions button {
+  border: 1px solid var(--surface-3);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-item-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.admin-file-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.admin-file-label input {
+  max-width: 100%;
+  color: var(--muted);
+  font: inherit;
+}
+
+.admin-bottom-actions {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 18px;
+  margin-top: 28px;
+}
+
+.admin-warning {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 18px;
+}
+
+.admin-modal textarea,
+.admin-modal input,
+.admin-modal select {
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-list-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-list-heading input {
+    width: 100%;
+  }
+
+  .admin-list-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-quick-actions {
+    flex-direction: column;
+  }
+
+  .admin-item-actions {
+    width: 100%;
+  }
+}
