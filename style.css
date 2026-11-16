@@ -587,7 +587,16 @@ button { color: inherit; }
   .calculator-grid { grid-template-columns: 1fr; }
   .calculator-card { padding: 20px; }
   .about-inner { grid-template-columns: 1fr; gap: 30px; }
-  .about-mark { max-width: 145px; border-radius: 22px; font-size: 55px; }
+  .about-mark {
+  max-width: 145px;
+  border-radius: 22px;
+}
+
+.about-mark img {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+}
   .footer-main { flex-wrap: wrap; }
   .footer-main p { order: 3; width: 100%; margin: 0; }
   .footer-bottom { flex-wrap: wrap; justify-content: space-between; padding-block: 13px; }
