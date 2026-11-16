@@ -1,0 +1,236 @@
+{
+  "categories": [
+    {
+      "id": "elektronika",
+      "name": "Elektronika",
+      "icon": "cpu",
+      "description": "Návrh schémat, analogové i digitální obvody, měření osciloskopem a EMC."
+    },
+    {
+      "id": "programovani",
+      "name": "Programování",
+      "icon": "code",
+      "description": "C/C++ pro mikrokontroléry, Rust, Python automatizace a webové rozhraní."
+    },
+    {
+      "id": "hardware",
+      "name": "Hardware",
+      "icon": "layers",
+      "description": "Návrh vícevrstvých PCB v KiCadu, výběr součástek, tepelný management a 3D tisk."
+    },
+    {
+      "id": "software",
+      "name": "Software",
+      "icon": "terminal",
+      "description": "RTOS, Linux kernel moduly, telemetrie, MQTT brokery a diagnostické nástroje."
+    },
+    {
+      "id": "experimenty",
+      "name": "Experimenty",
+      "icon": "zap",
+      "description": "Vysokonapěťové měniče, GaN tranzistory, RF antény a laboratorní testy."
+    },
+    {
+      "id": "navody",
+      "name": "Návody",
+      "icon": "book",
+      "description": "Praktické postupy od pájení BGA pouzder po kalibraci laboratorních zdrojů."
+    }
+  ],
+  "articles": [
+    {
+      "id": "art-gan-buck-converter",
+      "title": "Návrh synchronního buck měniče s GaN FET tranzistory na 2 MHz",
+      "category": "elektronika",
+      "date": "2026-11-10",
+      "readTime": "11 min",
+      "author": "Ing. Marek Dvořák",
+      "featured": true,
+      "summary": "Detailní rozbor parazitních indukčností smyčky hradla, výběr stínících tlumivek a optimalizace rozložení čtyřvrstvého PCB pro účinnost přes 96 %.",
+      "content": [
+        "Přechod z klasických křemíkových MOSFETů na nitrid galia (GaN) přináší řádově nižší náboj hradla (Qg) a nulový zpětný zotavovací náboj (Qrr). To umožňuje zvýšit spínací frekvenci do oblasti jednotek megahertzů a dramaticky zmenšit rozměry pasivních součástek.",
+        "Kritickým faktorem při frekvenci 2 MHz je však parazitní indukčnost výkonové smyčky (power loop). I pouhé 2 nH navíc mohou při strmosti dI/dt přes 50 A/ns vyvolat napěťové překmity přesahující maximální povolené Vds tranzistoru.",
+        "V našem laboratorním prototypu jsme použili čtyřvrstvou desku plošných spojů s vnitřní zemnící rovinou umístěnou pouze 0,1 mm pod horní signálovou vrstvou (prepreg 1080). Tím se uzavře zpětný proud přímo pod výkonovou cestou a účinně se potlačí vyzařované EMI.",
+        "Měření na termokameře potvrdilo, že při výstupním proudu 8 A při 5 V (40 W) nepřesáhla teplota pouzdra spínacích prvků 54 °C bez aktivního chlazení."
+      ],
+      "tags": [
+        "GaN",
+        "Power Electronics",
+        "PCB Layout",
+        "EMI"
+      ]
+    },
+    {
+      "id": "art-esp32-rust-rtos",
+      "title": "Asynchronní sběr dat z průmyslových senzorů v Rustu (Embassy)",
+      "category": "programovani",
+      "date": "2026-11-04",
+      "readTime": "9 min",
+      "author": "Bc. Klára Novotná",
+      "featured": true,
+      "summary": "Jak nahradit klasický FreeRTOS moderním bezvláknovým executor modelem v jazyce Rust na čipech ESP32-S3 a STM32H7 s deterministickou latencí.",
+      "content": [
+        "Tradiční RTOS systémy vyžadují pro každou úlohu samostatný zásobník v paměti RAM a režii při přepínání kontextu. Framework Embassy využívá nativní async/await stavové automaty překladače Rustu.",
+        "Výsledkem je kompilace všech souběžných úloh do jediné kompaktní stavové struktury bez dynamické alokace paměti (no_std). Paměťová bezpečnost je garantována již během kompilace, což eliminuje chyby typu data race na sdílených sběrnicích SPI a I2C.",
+        "V reálném testu vyčítání akcelerometru přes DMA na frekvenci 4 kHz klesla spotřeba CPU o 38 % oproti ekvivalentní implementaci v C nad FreeRTOS."
+      ],
+      "tags": [
+        "Rust",
+        "Embedded",
+        "ESP32",
+        "Async"
+      ]
+    },
+    {
+      "id": "art-4layer-kicad-guide",
+      "title": "Čtyřvrstvé desky plošných spojů v KiCad 9: Stackup a impedance",
+      "category": "hardware",
+      "date": "2026-10-27",
+      "readTime": "14 min",
+      "author": "Ing. Marek Dvořák",
+      "featured": false,
+      "summary": "Praktický průvodce výpočtem řízené impedance 50 Ω a diferenciálních párů USB 2.0 / Ethernet na standardních levných stackupech.",
+      "content": [
+        "Výroba čtyřvrstvých desek je dnes cenově dostupná i pro kusové prototypy. Aby však přinesla skutečný přínos pro integritu signálu, je nutné správně zvolit pořadí vrstev.",
+        "Doporučený stackup pro smíšené signály je Signál + Napájení / GND / GND / Signál + Napájení. Dvě souvislé zemnící roviny uvnitř desky zajišťují pevnou referenci pro obě vnější vrstvy a minimalizují přeslechy.",
+        "Pomocí integrovaného kalkulátoru v KiCadu snadno spočítáme šířku vodiče pro 50 Ω single-ended a 90 Ω diferenciální páry s ohledem na dielektrickou konstantu FR-4 (Er ≈ 4.2–4.5)."
+      ],
+      "tags": [
+        "KiCad",
+        "PCB",
+        "Signal Integrity",
+        "Impedance"
+      ]
+    },
+    {
+      "id": "art-mqtt-timescaledb-telemetry",
+      "title": "Architektura telemetrického pipeline: MQTT, Telegraf a TimescaleDB",
+      "category": "software",
+      "date": "2026-10-18",
+      "readTime": "8 min",
+      "author": "Tomáš Král",
+      "featured": false,
+      "summary": "Návrh odolného sběru laboratorních dat s lokální vyrovnávací pamětí proti výpadkům sítě a vizualizací v reálném čase.",
+      "content": [
+        "Dlouhodobé měření teplotních driftů a spotřeby vyžaduje spolehlivé ukládání časových řad. Kombinace brokeru Mosquitto s TLS šifrováním a databáze TimescaleDB zvládá desítky tisíc vzorků za sekundu.",
+        "Každý měřicí uzel odesílá kompaktní binární payload nebo strukturovaný JSON s lokálním časovým razítkem (NTP / RTC). Při výpadku Wi-Fi se data ukládají do kruhového bufferu ve Flash paměti."
+      ],
+      "tags": [
+        "MQTT",
+        "Telemetry",
+        "Database",
+        "IoT"
+      ]
+    },
+    {
+      "id": "art-tdr-cable-measurement",
+      "title": "Měření délky a impedančních nespojitostí kabelů pomocí TDR",
+      "category": "experimenty",
+      "date": "2026-10-09",
+      "readTime": "10 min",
+      "author": "Ing. Marek Dvořák",
+      "featured": false,
+      "summary": "Jak postavit jednoduchý generátor strmých hran s hradlem 74AC14 a proměřit koaxiální vedení s přesností na centimetry.",
+      "content": [
+        "Reflektometrie v časové oblasti (TDR) vysílá do vedení rychlý napěťový skok s dobou náběhu pod 1 ns a sleduje odraženou vlnu na osciloskopu.",
+        "Z doby zpoždění mezi vyslaným a odraženým impulzem a činitele zkrácení kabelu (typicky 0,66 pro PE dielektrikum) určíme přesnou polohu zkratu, přerušení nebo nekvalitního konektoru."
+      ],
+      "tags": [
+        "TDR",
+        "Osciloskop",
+        "RF",
+        "Měření"
+      ]
+    },
+    {
+      "id": "art-bench-psu-calibration",
+      "title": "Kalibrace laboratorního zdroje a 4vodičové měření odporu (Kelvin)",
+      "category": "navody",
+      "date": "2026-09-29",
+      "readTime": "7 min",
+      "author": "Bc. Klára Novotná",
+      "featured": false,
+      "summary": "Odstraňte chybu způsobenou odporem měřicích vodičů při měření miliohmových bočníků a nízkých úbytků napětí.",
+      "content": [
+        "Při měření odporů pod 1 Ω přestává být klasické dvouvodičové měření použitelné, protože odpor samotných banánkových kabelů a krokosvorek dosahuje 50 až 150 mΩ.",
+        "Čtyřvodičová (Kelvinova) metoda odděluje proudovou cestu od napěťové snímací cesty. Voltmetr s vysokým vstupním odporem měří úbytek napětí přímo na svorkách součástky bez vlivu úbytku na přívodech."
+      ],
+      "tags": [
+        "Měření",
+        "Kalibrace",
+        "Laboratoř",
+        "Základy"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-voltmeter-pro",
+      "title": "VoltLab DMM-65: 6.5místný laboratorní multimetr",
+      "category": "hardware",
+      "status": "Aktivní vývoj",
+      "difficulty": "Pokročilý",
+      "progress": 78,
+      "date": "2026-11-12",
+      "summary": "Otevřený stolní multimetr postavený kolem 24bitového ADC převodníku ADS1256, teplotně stabilizované reference ADR4550 a galvanicky odděleného USB-C rozhraní.",
+      "specs": [
+        "Rozlišení: 24-bit (až 6.5 číslic s oversamplingem)",
+        "Napěťová reference: ADR4550B (drift 2 ppm/°C)",
+        "Galvanická izolace: 5 kV RMS (napájení i data)",
+        "Rozhraní: SCPI příkazy přes USB-C a WebSerial"
+      ],
+      "repo": "https://github.com/voltlab-dev/dmm-65"
+    },
+    {
+      "id": "proj-electronic-load",
+      "title": "Programovatelná elektronická zátěž 300 W / 60 V",
+      "category": "elektronika",
+      "status": "Dokončeno",
+      "difficulty": "Střední",
+      "progress": 100,
+      "date": "2026-10-20",
+      "summary": "Dvoukanálová elektronická DC zátěž s režimy CC, CV, CR a CP, řízená mikrokontrolérem STM32G4 a vybavená inteligentním řízením otáček ventilátorů.",
+      "specs": [
+        "Maximální výkon: 300 W trvale (2× IXTK90N25L2 v lineárním režimu)",
+        "Rozsah napětí: 0.5 V – 60 V, proud až 30 A",
+        "Snímání proudu: 4vodičový manganinový bočník 5 mΩ (0.1 %)",
+        "Dynamický test: Pulzní přepínání zátěže až 10 kHz"
+      ],
+      "repo": "https://github.com/voltlab-dev/dc-load-300w"
+    },
+    {
+      "id": "proj-logic-analyzer",
+      "title": "FPGA Logic Analyzer 400 MSPS",
+      "category": "experimenty",
+      "status": "Prototyp",
+      "difficulty": "Expert",
+      "progress": 55,
+      "date": "2026-09-15",
+      "summary": "16kanálový logický analyzátor s FPGA Lattice ECP5, 64 MB SDRAM vyrovnávací pamětí a přímým streamováním do PulseView / Sigrok.",
+      "specs": [
+        "Vzorkovací frekvence: 400 MSPS na 16 kanálech současně",
+        "Nastavitelný logický práh: 0.8 V až 3.6 V po krocích 50 mV",
+        "Vstupní ochrana: ESD + proudové omezení do ±15 V",
+        "Přenos dat: USB 3.0 / FT601 FIFO rozhraní"
+      ],
+      "repo": "https://github.com/voltlab-dev/fpga-la-400"
+    },
+    {
+      "id": "proj-reflow-plate",
+      "title": "PID Reflow Hotplate s USB-C PD napájením",
+      "category": "navody",
+      "status": "Dokončeno",
+      "difficulty": "Začátečník",
+      "progress": 100,
+      "date": "2026-08-30",
+      "summary": "Kompaktní hliníková ohřívací deska 100×100 mm pro pájení SMD součástek s přesným PID řízením pájecí křivky a OLED displejem.",
+      "specs": [
+        "Napájení: USB-C Power Delivery 20 V / 5 A (100 W)",
+        "Topné těleso: Integrovaný topný meandr na hliníkovém MCPCB",
+        "Senzor teploty: Platinový odporový snímač PT1000",
+        "Bezpečnost: Automatické vypnutí při nečinnosti a tepelná pojistka"
+      ],
+      "repo": "https://github.com/voltlab-dev/usb-pd-hotplate"
+    }
+  ]
+}

@@ -1,1506 +1,621 @@
-```javascript
-/* =========================================================
-   VOLTLAB V4 — APP.JS
-   Hlavní aplikační logika webu
-   ========================================================= */
+/**
+ * VoltLab V5 — Main Application Controller
+ */
 
-(() => {
-  "use strict";
+import { VoltLabStore } from './store.js';
+import { initEngineeringTools } from './tools.js';
+import { AdminController } from './admin.js';
 
-  const CONFIG = window.VOLTLAB_CONFIG || {};
+const store = new VoltLabStore();
 
-  const STORAGE = {
-    articles: CONFIG.storage?.articles || "voltlab_v4_articles",
-    projects: CONFIG.storage?.projects || "voltlab_v4_projects",
-    theme: CONFIG.storage?.theme || "voltlab_v4_theme",
-    favorites: "voltlab_v4_favorites",
-    notes: "voltlab_v4_notes",
-    keyboardHint: "voltlab_v4_keyboard_hint"
-  };
+const uiState = {
+  articleCategory: 'all',
+  articleSort: 'newest',
+  onlyBookmarkedArticles: false,
+  projectCategory: 'all',
+  projectDifficulty: 'all',
+  globalQuery: ''
+};
 
-  const DEFAULT_THEME = CONFIG.appearance?.defaultTheme || "dark";
+function showToast(message) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.setAttribute('role', 'status');
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(8px)';
+    setTimeout(() => toast.remove(), 220);
+  }, 3200);
+}
 
-  const DEFAULT_ARTICLES = Array.isArray(window.VOLTLAB_ARTICLES)
-    ? JSON.parse(JSON.stringify(window.VOLTLAB_ARTICLES))
-    : [];
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
 
-  const DEFAULT_PROJECTS = Array.isArray(window.VOLTLAB_PROJECTS)
-    ? JSON.parse(JSON.stringify(window.VOLTLAB_PROJECTS))
-    : [];
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
 
-  let articles = loadContent(STORAGE.articles, DEFAULT_ARTICLES);
-  let projects = loadContent(STORAGE.projects, DEFAULT_PROJECTS);
+function getCategoryName(catId) {
+  const found = store.data.categories.find((c) => c.id === catId);
+  return found ? found.name : catId;
+}
 
-  let favorites = readJSON(STORAGE.favorites, []);
-  let activeArticleFilter = "all";
-  let activeProjectFilter = "all";
+function renderStats() {
+  const artCount = document.getElementById('stat-articles');
+  const projCount = document.getElementById('stat-projects');
+  const catCount = document.getElementById('stat-categories');
+  const favCount = document.getElementById('stat-bookmarks');
 
-  let articleSearchQuery = "";
-  let projectSearchQuery = "";
-  let globalSearchQuery = "";
+  if (artCount) artCount.textContent = store.data.articles.length;
+  if (projCount) projCount.textContent = store.data.projects.length;
+  if (catCount) catCount.textContent = store.data.categories.length;
+  if (favCount) favCount.textContent = store.bookmarks.size;
+}
 
-  let currentDialogItem = null;
+function renderCategories() {
+  const grid = document.getElementById('categories-grid');
+  if (!grid) return;
 
-  /* =======================================================
-     ZÁKLADNÍ POMOCNÉ FUNKCE
-     ======================================================= */
-
-  function readStorage(key) {
-    try {
-      return localStorage.getItem(key);
-    } catch (error) {
-      console.warn("VoltLab: Nelze číst localStorage.", error);
-      return null;
-    }
-  }
-
-  function writeStorage(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (error) {
-      console.warn("VoltLab: Nelze uložit data.", error);
-      notify("Data se nepodařilo uložit. Zkontroluj úložiště prohlížeče.", "error");
-      return false;
-    }
-  }
-
-  function readJSON(key, fallback) {
-    const raw = readStorage(key);
-
-    if (!raw) {
-      return JSON.parse(JSON.stringify(fallback));
-    }
-
-    try {
-      return JSON.parse(raw);
-    } catch (error) {
-      console.warn("VoltLab: Neplatná uložená data.", error);
-      return JSON.parse(JSON.stringify(fallback));
-    }
-  }
-
-  function loadContent(key, fallback) {
-    const saved = readJSON(key, fallback);
-    return Array.isArray(saved) ? saved : JSON.parse(JSON.stringify(fallback));
-  }
-
-  function saveJSON(key, value) {
-    return writeStorage(key, JSON.stringify(value));
-  }
-
-  function $(selector, root = document) {
-    return root.querySelector(selector);
-  }
-
-  function $$(selector, root = document) {
-    return [...root.querySelectorAll(selector)];
-  }
-
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, character => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    })[character]);
-  }
-
-  function categoryName(id) {
-    const categories = CONFIG.categories || [];
-    const category = categories.find(item => item.id === id);
-    return category?.name || id || "Ostatní";
-  }
-
-  function getIcon(item) {
-    return escapeHTML(item?.icon || "⚡");
-  }
-
-  function normalize(value) {
-    return String(value ?? "")
-      .toLocaleLowerCase("cs")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-  }
-
-  function formatDate(date = new Date()) {
-    return new Intl.DateTimeFormat("cs-CZ", {
-      day: "numeric",
-      month: "long",
-      year: "numeric"
-    }).format(date);
-  }
-
-  function scrollToSection(id) {
-    const element = document.getElementById(id);
-    if (!element) return;
-
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-  }
-
-  /* =======================================================
-     NOTIFIKACE
-     ======================================================= */
-
-  function notify(message, type = "success", duration = 3200) {
-    const region = $("#toast-region");
-
-    if (!region) {
-      console.log("[VoltLab]", message);
-      return;
-    }
-
-    const toast = document.createElement("div");
-    toast.className = `toast toast-${type}`;
-    toast.setAttribute("role", "status");
-
-    const icons = {
-      success: "✓",
-      error: "!",
-      warning: "⚠",
-      info: "i"
-    };
-
-    toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || "i"}</span>
-      <span class="toast-message">${escapeHTML(message)}</span>
-      <button class="toast-close" type="button" aria-label="Zavřít">×</button>
-    `;
-
-    region.appendChild(toast);
-
-    requestAnimationFrame(() => {
-      toast.classList.add("is-visible");
-    });
-
-    const remove = () => {
-      toast.classList.remove("is-visible");
-      setTimeout(() => toast.remove(), 250);
-    };
-
-    $(".toast-close", toast)?.addEventListener("click", remove);
-    setTimeout(remove, duration);
-  }
-
-  /* =======================================================
-     BEZPEČNÉ VYKRESLENÍ OBSAHU ČLÁNKŮ
-     ======================================================= */
-
-  function sanitizeHTML(html) {
-    const template = document.createElement("template");
-    template.innerHTML = String(html ?? "");
-
-    const allowedTags = new Set([
-      "P", "BR", "STRONG", "B", "EM", "I",
-      "H2", "H3", "H4",
-      "UL", "OL", "LI",
-      "BLOCKQUOTE",
-      "PRE", "CODE",
-      "A",
-      "TABLE", "THEAD", "TBODY", "TR", "TH", "TD",
-      "HR", "SPAN", "DIV"
-    ]);
-
-    const allowedAttributes = new Set([
-      "href", "target", "rel", "class", "title"
-    ]);
-
-    function cleanNode(node) {
-      [...node.childNodes].forEach(child => {
-        if (child.nodeType === Node.COMMENT_NODE) {
-          child.remove();
-          return;
-        }
-
-        if (child.nodeType !== Node.ELEMENT_NODE) return;
-
-        if (!allowedTags.has(child.tagName)) {
-          child.replaceWith(...child.childNodes);
-          return;
-        }
-
-        [...child.attributes].forEach(attribute => {
-          const name = attribute.name.toLowerCase();
-
-          if (!allowedAttributes.has(name) || name.startsWith("on")) {
-            child.removeAttribute(attribute.name);
-          }
-        });
-
-        if (child.tagName === "A") {
-          const href = child.getAttribute("href") || "";
-
-          if (!/^(https?:|mailto:|#)/i.test(href)) {
-            child.removeAttribute("href");
-          } else {
-            child.setAttribute("rel", "noopener noreferrer");
-          }
-        }
-
-        cleanNode(child);
-      });
-    }
-
-    cleanNode(template.content);
-    return template.innerHTML;
-  }
-
-  /* =======================================================
-     KATEGORIE
-     ======================================================= */
-
-  function renderCategories() {
-    const container = $("#category-grid");
-    if (!container) return;
-
-    const categories = CONFIG.categories || [];
-
-    container.innerHTML = categories.map(category => {
-      const count = articles.filter(item => item.category === category.id).length
-        + projects.filter(item => item.category === category.id).length;
+  grid.innerHTML = store.data.categories
+    .map((cat) => {
+      const count =
+        store.data.articles.filter((a) => a.category === cat.id).length +
+        store.data.projects.filter((p) => p.category === cat.id).length;
 
       return `
-        <button class="category-card" type="button"
-          data-category-link="${escapeHTML(category.id)}">
-          <span class="category-icon">${escapeHTML(category.icon || "⚡")}</span>
-          <span class="category-title">${escapeHTML(category.name)}</span>
-          <span class="category-description">${escapeHTML(category.description || "")}</span>
-          <span class="category-count">${count} materiálů</span>
-        </button>
-      `;
-    }).join("");
-  }
-
-  /* =======================================================
-     FILTRY ČLÁNKŮ
-     ======================================================= */
-
-  function renderArticleFilters() {
-    const container = $("#article-filters");
-    if (!container) return;
-
-    const categories = CONFIG.categories || [];
-
-    const filters = [
-      { id: "all", name: "Vše" },
-      ...categories.map(category => ({
-        id: category.id,
-        name: category.name
-      }))
-    ];
-
-    container.innerHTML = filters.map(filter => `
-      <button
-        class="filter-btn ${activeArticleFilter === filter.id ? "active" : ""}"
-        type="button"
-        data-article-filter="${escapeHTML(filter.id)}">
-        ${escapeHTML(filter.name)}
-      </button>
-    `).join("");
-  }
-
-  function articleMatchesSearch(article, query) {
-    if (!query) return true;
-
-    const searchable = [
-      article.title,
-      article.excerpt,
-      article.content,
-      article.category,
-      ...(article.tags || [])
-    ].join(" ");
-
-    return normalize(searchable).includes(normalize(query));
-  }
-
-  function renderArticles() {
-    const container = $("#articles-list");
-    const empty = $("#articles-empty");
-
-    if (!container) return;
-
-    const filtered = articles.filter(article => {
-      const matchesCategory = activeArticleFilter === "all"
-        || article.category === activeArticleFilter;
-
-      return matchesCategory && articleMatchesSearch(article, articleSearchQuery);
-    });
-
-    if (!filtered.length) {
-      container.innerHTML = "";
-      if (empty) empty.hidden = false;
-      return;
-    }
-
-    if (empty) empty.hidden = true;
-
-    container.innerHTML = filtered.map(article => {
-      const favoriteId = `article:${article.id}`;
-      const isFavorite = favorites.includes(favoriteId);
-
-      return `
-        <article class="article-card content-card">
-          <div class="card-topline">
-            <span class="card-icon">${getIcon(article)}</span>
-            <span class="card-category">${escapeHTML(categoryName(article.category))}</span>
-            <button
-              class="favorite-btn ${isFavorite ? "is-favorite" : ""}"
-              type="button"
-              data-favorite="${escapeHTML(favoriteId)}"
-              aria-label="${isFavorite ? "Odebrat z oblíbených" : "Přidat do oblíbených"}">
-              ${isFavorite ? "♥" : "♡"}
-            </button>
-          </div>
-
-          <h3>${escapeHTML(article.title)}</h3>
-          <p>${escapeHTML(article.excerpt || "")}</p>
-
-          <div class="card-meta">
-            <span>◷ ${escapeHTML(article.readTime || "5 min")}</span>
-            <span>${(article.tags || []).length} štítků</span>
-          </div>
-
-          <button class="card-link" type="button"
-            data-open-article="${escapeHTML(article.id)}">
-            Otevřít článek <span>→</span>
-          </button>
-        </article>
-      `;
-    }).join("");
-  }
-
-  /* =======================================================
-     FILTRY PROJEKTŮ
-     ======================================================= */
-
-  function renderProjectFilters() {
-    const container = $("#project-filters");
-    if (!container) return;
-
-    const categories = CONFIG.categories || [];
-
-    const filters = [
-      { id: "all", name: "Vše" },
-      ...categories.map(category => ({
-        id: category.id,
-        name: category.name
-      }))
-    ];
-
-    container.innerHTML = filters.map(filter => `
-      <button
-        class="filter-btn ${activeProjectFilter === filter.id ? "active" : ""}"
-        type="button"
-        data-project-filter="${escapeHTML(filter.id)}">
-        ${escapeHTML(filter.name)}
-      </button>
-    `).join("");
-  }
-
-  function projectMatchesSearch(project, query) {
-    if (!query) return true;
-
-    const searchable = [
-      project.title,
-      project.description,
-      project.category,
-      project.difficulty,
-      project.components,
-      project.steps,
-      ...(project.tags || [])
-    ].join(" ");
-
-    return normalize(searchable).includes(normalize(query));
-  }
-
-  function renderProjects() {
-    const container = $("#projects-list");
-    const empty = $("#projects-empty");
-
-    if (!container) return;
-
-    const filtered = projects.filter(project => {
-      const matchesCategory = activeProjectFilter === "all"
-        || project.category === activeProjectFilter;
-
-      return matchesCategory && projectMatchesSearch(project, projectSearchQuery);
-    });
-
-    if (!filtered.length) {
-      container.innerHTML = "";
-      if (empty) empty.hidden = false;
-      return;
-    }
-
-    if (empty) empty.hidden = true;
-
-    container.innerHTML = filtered.map(project => {
-      const favoriteId = `project:${project.id}`;
-      const isFavorite = favorites.includes(favoriteId);
-
-      return `
-        <article class="project-card content-card">
-          <div class="card-topline">
-            <span class="card-icon">${getIcon(project)}</span>
-            <span class="card-category">${escapeHTML(categoryName(project.category))}</span>
-            <button
-              class="favorite-btn ${isFavorite ? "is-favorite" : ""}"
-              type="button"
-              data-favorite="${escapeHTML(favoriteId)}"
-              aria-label="${isFavorite ? "Odebrat z oblíbených" : "Přidat do oblíbených"}">
-              ${isFavorite ? "♥" : "♡"}
-            </button>
-          </div>
-
-          <h3>${escapeHTML(project.title)}</h3>
-          <p>${escapeHTML(project.description || "")}</p>
-
-          <div class="card-meta">
-            <span>◈ ${escapeHTML(project.difficulty || "Začátečník")}</span>
-            <span>◷ ${escapeHTML(project.time || "30 min")}</span>
-          </div>
-
-          <button class="card-link" type="button"
-            data-open-project="${escapeHTML(project.id)}">
-            Zobrazit projekt <span>→</span>
-          </button>
-        </article>
-      `;
-    }).join("");
-  }
-
-  /* =======================================================
-     DIALOGY A DETAILY
-     ======================================================= */
-
-  function openDialog(html) {
-    const dialog = $("#content-dialog");
-    const content = $("#dialog-content");
-
-    if (!dialog || !content) return;
-
-    content.innerHTML = html;
-
-    if (typeof dialog.showModal === "function") {
-      if (!dialog.open) dialog.showModal();
-    } else {
-      dialog.classList.add("is-open", "active");
-      dialog.setAttribute("aria-hidden", "false");
-    }
-
-    document.body.classList.add("dialog-open");
-  }
-
-  function closeDialog() {
-    const dialog = $("#content-dialog");
-    if (!dialog) return;
-
-    if (typeof dialog.close === "function" && dialog.open) {
-      dialog.close();
-    } else {
-      dialog.classList.remove("is-open", "active");
-      dialog.setAttribute("aria-hidden", "true");
-    }
-
-    document.body.classList.remove("dialog-open");
-    currentDialogItem = null;
-  }
-
-  function openArticle(id) {
-    const article = articles.find(item => item.id === id);
-    if (!article) return;
-
-    currentDialogItem = { type: "article", id };
-
-    const tags = (article.tags || []).map(tag =>
-      `<span class="tag">${escapeHTML(tag)}</span>`
-    ).join("");
-
-    openDialog(`
-      <div class="detail-view article-detail">
-        <div class="detail-header">
-          <span class="detail-icon">${getIcon(article)}</span>
-          <div>
-            <span class="detail-category">${escapeHTML(categoryName(article.category))}</span>
-            <h2>${escapeHTML(article.title)}</h2>
-            <span class="detail-meta">◷ ${escapeHTML(article.readTime || "5 min čtení")}</span>
-          </div>
+      <button type="button" class="category-card" data-select-category="${cat.id}">
+        <div class="card-icon-box">${cat.name.slice(0, 2).toUpperCase()}</div>
+        <h3>${cat.name}</h3>
+        <p class="card-excerpt">${cat.description}</p>
+        <div class="category-meta">
+          <span>${count} položek</span>
+          <span>Filtrovat →</span>
         </div>
+      </button>`;
+    })
+    .join('');
 
-        <p class="detail-excerpt">${escapeHTML(article.excerpt || "")}</p>
-
-        <div class="detail-tags">${tags}</div>
-
-        <div class="article-content">
-          ${sanitizeHTML(article.content || "<p>Obsah článku zatím není k dispozici.</p>")}
-        </div>
-
-        <div class="detail-actions">
-          <button class="secondary-btn" type="button"
-            data-favorite="article:${escapeHTML(article.id)}">
-            ${favorites.includes(`article:${article.id}`) ? "♥ V oblíbených" : "♡ Přidat do oblíbených"}
-          </button>
-        </div>
-      </div>
-    `);
-  }
-
-  function openProject(id) {
-    const project = projects.find(item => item.id === id);
-    if (!project) return;
-
-    currentDialogItem = { type: "project", id };
-
-    const components = Array.isArray(project.components)
-      ? project.components
-      : String(project.components || "").split(/\n|,/).filter(Boolean);
-
-    const steps = Array.isArray(project.steps)
-      ? project.steps
-      : String(project.steps || "").split(/\n/).filter(Boolean);
-
-    const code = String(project.code || "");
-
-    openDialog(`
-      <div class="detail-view project-detail">
-        <div class="detail-header">
-          <span class="detail-icon">${getIcon(project)}</span>
-          <div>
-            <span class="detail-category">${escapeHTML(categoryName(project.category))}</span>
-            <h2>${escapeHTML(project.title)}</h2>
-            <span class="detail-meta">
-              ◈ ${escapeHTML(project.difficulty || "Začátečník")}
-              &nbsp; · &nbsp;
-              ◷ ${escapeHTML(project.time || "30 min")}
-            </span>
-          </div>
-        </div>
-
-        <p class="detail-excerpt">${escapeHTML(project.description || "")}</p>
-
-        <section class="detail-section">
-          <h3>Potřebné součástky</h3>
-          <ul class="component-list">
-            ${components.map(component =>
-              `<li>${escapeHTML(component)}</li>`
-            ).join("")}
-          </ul>
-        </section>
-
-        <section class="detail-section">
-          <h3>Postup</h3>
-          <ol class="project-steps">
-            ${steps.map(step =>
-              `<li>${escapeHTML(step)}</li>`
-            ).join("")}
-          </ol>
-        </section>
-
-        ${code ? `
-          <section class="detail-section">
-            <div class="code-heading">
-              <h3>Zdrojový kód</h3>
-              <button class="copy-code-btn" type="button" data-copy-code>
-                Kopírovat kód
-              </button>
-            </div>
-            <pre class="code-block"><code>${escapeHTML(code)}</code></pre>
-          </section>
-        ` : ""}
-
-        ${project.note ? `
-          <aside class="project-note">
-            <strong>Tip:</strong> ${escapeHTML(project.note)}
-          </aside>
-        ` : ""}
-
-        <div class="detail-actions">
-          <button class="secondary-btn" type="button"
-            data-favorite="project:${escapeHTML(project.id)}">
-            ${favorites.includes(`project:${project.id}`) ? "♥ V oblíbených" : "♡ Přidat do oblíbených"}
-          </button>
-        </div>
-      </div>
-    `);
-  }
-
-  /* =======================================================
-     KOPÍROVÁNÍ KÓDU
-     ======================================================= */
-
-  async function copyText(text) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.select();
-
-        const success = document.execCommand("copy");
-        textarea.remove();
-
-        if (!success) throw new Error("Kopírování nebylo povoleno.");
-      }
-
-      notify("Zkopírováno do schránky.", "success");
-    } catch (error) {
-      notify("Kopírování se nezdařilo.", "error");
-    }
-  }
-
-  /* =======================================================
-     OBLÍBENÉ POLOŽKY
-     ======================================================= */
-
-  function toggleFavorite(id) {
-    if (!id) return;
-
-    if (favorites.includes(id)) {
-      favorites = favorites.filter(item => item !== id);
-      notify("Položka byla odebrána z oblíbených.", "info");
-    } else {
-      favorites.push(id);
-      notify("Přidáno do oblíbených.", "success");
-    }
-
-    saveJSON(STORAGE.favorites, favorites);
-
-    renderArticles();
-    renderProjects();
-    renderFavorites();
-
-    if (currentDialogItem) {
-      if (currentDialogItem.type === "article") {
-        openArticle(currentDialogItem.id);
-      } else {
-        openProject(currentDialogItem.id);
-      }
-    }
-  }
-
-  function renderFavorites() {
-    const container = $("#favorites-list");
-    const count = $("#favorites-count");
-    const description = $("#favorites-description");
-
-    const total = favorites.length;
-
-    if (count) count.textContent = String(total);
-
-    if (description) {
-      description.textContent = total
-        ? `Máš uložených ${total} oblíbených položek.`
-        : "Zatím tu nemáš žádné uložené položky.";
-    }
-
-    if (!container) return;
-
-    const favoriteItems = favorites.map(favorite => {
-      const [type, ...parts] = favorite.split(":");
-      const id = parts.join(":");
-
-      if (type === "article") {
-        const item = articles.find(article => article.id === id);
-        return item ? { ...item, favoriteType: type } : null;
-      }
-
-      if (type === "project") {
-        const item = projects.find(project => project.id === id);
-        return item ? { ...item, favoriteType: type } : null;
-      }
-
-      return null;
-    }).filter(Boolean);
-
-    if (!favoriteItems.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <span class="empty-icon">♡</span>
-          <h3>Zatím nic uloženého</h3>
-          <p>U článků a projektů klikni na srdíčko a uložíš si je sem.</p>
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = favoriteItems.map(item => `
-      <article class="favorite-card content-card">
-        <div class="card-topline">
-          <span class="card-icon">${getIcon(item)}</span>
-          <span class="card-category">
-            ${item.favoriteType === "article" ? "Článek" : "Projekt"}
-          </span>
-          <button class="favorite-btn is-favorite" type="button"
-            data-favorite="${escapeHTML(`${item.favoriteType}:${item.id}`)}"
-            aria-label="Odebrat z oblíbených">♥</button>
-        </div>
-        <h3>${escapeHTML(item.title)}</h3>
-        <p>${escapeHTML(item.excerpt || item.description || "")}</p>
-        <button class="card-link" type="button"
-          ${item.favoriteType === "article"
-            ? `data-open-article="${escapeHTML(item.id)}"`
-            : `data-open-project="${escapeHTML(item.id)}"`}>
-          Otevřít <span>→</span>
-        </button>
-      </article>
-    `).join("");
-  }
-
-  /* =======================================================
-     OSOBNÍ POZNÁMKY
-     ======================================================= */
-
-  function initNotes() {
-    const textarea = $("#personal-notes");
-    const counter = $("#notes-character-count");
-    const status = $("#notes-save-status");
-    const saveButton = $("#notes-save");
-    const clearButton = $("#notes-clear");
-
-    if (!textarea) return;
-
-    textarea.value = readStorage(STORAGE.notes) || "";
-
-    function updateCounter() {
-      if (counter) {
-        counter.textContent = `${textarea.value.length} znaků`;
-      }
-    }
-
-    function saveNotes() {
-      const success = writeStorage(STORAGE.notes, textarea.value);
-
-      if (success && status) {
-        status.textContent = `Uloženo ${new Date().toLocaleTimeString("cs-CZ", {
-          hour: "2-digit",
-          minute: "2-digit"
-        })}`;
-      }
-
-      return success;
-    }
-
-    updateCounter();
-
-    textarea.addEventListener("input", () => {
-      updateCounter();
-
-      if (status) status.textContent = "Neuložené změny";
+  grid.querySelectorAll('[data-select-category]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const catId = btn.dataset.selectCategory;
+      uiState.articleCategory = catId;
+      uiState.projectCategory = catId;
+      renderAllContent();
+      document.getElementById('articles-section')?.scrollIntoView({ behavior: 'smooth' });
+      showToast(`Zobrazena kategorie: ${getCategoryName(catId)}`);
     });
-
-    saveButton?.addEventListener("click", () => {
-      if (saveNotes()) notify("Poznámky byly uloženy.", "success");
-    });
-
-    clearButton?.addEventListener("click", () => {
-      if (!textarea.value) return;
-
-      const confirmed = window.confirm("Opravdu chceš smazat všechny poznámky?");
-      if (!confirmed) return;
-
-      textarea.value = "";
-      saveNotes();
-      updateCounter();
-      notify("Poznámky byly smazány.", "info");
-    });
-
-    textarea.addEventListener("keydown", event => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
-        event.preventDefault();
-        saveNotes();
-        notify("Poznámky byly uloženy.", "success");
-      }
-    });
-  }
-
-  /* =======================================================
-     VZHLED WEBU
-     ======================================================= */
-
-  function applyTheme(theme) {
-    const selectedTheme = theme === "light" ? "light" : "dark";
-
-    document.documentElement.dataset.theme = selectedTheme;
-    document.documentElement.classList.toggle("theme-light", selectedTheme === "light");
-    document.documentElement.classList.toggle("theme-dark", selectedTheme === "dark");
-
-    const icon = $("#theme-icon");
-    if (icon) icon.textContent = selectedTheme === "dark" ? "☼" : "☾";
-
-    const toggle = $("#theme-toggle");
-    if (toggle) {
-      toggle.setAttribute(
-        "aria-label",
-        selectedTheme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim"
-      );
-    }
-
-    writeStorage(STORAGE.theme, selectedTheme);
-  }
-
-  function initTheme() {
-    const savedTheme = readStorage(STORAGE.theme);
-    applyTheme(savedTheme || DEFAULT_THEME);
-
-    $("#theme-toggle")?.addEventListener("click", () => {
-      const current = document.documentElement.dataset.theme || DEFAULT_THEME;
-      applyTheme(current === "dark" ? "light" : "dark");
-    });
-  }
-
-  /* =======================================================
-     MOBILNÍ MENU
-     ======================================================= */
-
-  function initMobileMenu() {
-    const toggle = $("#mobile-menu-toggle");
-    const nav = $("#main-nav");
-
-    if (!toggle || !nav) return;
-
-    function closeMenu() {
-      nav.classList.remove("is-open", "active");
-      toggle.classList.remove("is-active");
-      toggle.setAttribute("aria-expanded", "false");
-    }
-
-    toggle.addEventListener("click", () => {
-      const isOpen = nav.classList.toggle("is-open");
-      nav.classList.toggle("active", isOpen);
-      toggle.classList.toggle("is-active", isOpen);
-      toggle.setAttribute("aria-expanded", String(isOpen));
-    });
-
-    $$("a, button", nav).forEach(link => {
-      link.addEventListener("click", closeMenu);
-    });
-
-    document.addEventListener("click", event => {
-      if (!nav.contains(event.target) && !toggle.contains(event.target)) {
-        closeMenu();
-      }
-    });
-  }
-
-  /* =======================================================
-     GLOBÁLNÍ VYHLEDÁVÁNÍ
-     ======================================================= */
-
-  function getSearchResults(query) {
-    const normalized = normalize(query);
-
-    if (!normalized) return [];
-
-    const articleResults = articles
-      .filter(article => articleMatchesSearch(article, query))
-      .map(article => ({
-        type: "article",
-        id: article.id,
-        title: article.title,
-        description: article.excerpt || "",
-        icon: article.icon || "📘"
-      }));
-
-    const projectResults = projects
-      .filter(project => projectMatchesSearch(project, query))
-      .map(project => ({
-        type: "project",
-        id: project.id,
-        title: project.title,
-        description: project.description || "",
-        icon: project.icon || "⚙"
-      }));
-
-    return [...articleResults, ...projectResults].slice(0, 12);
-  }
-
-  function renderGlobalSearch() {
-    const container = $("#global-search-results");
-    if (!container) return;
-
-    if (!globalSearchQuery.trim()) {
-      container.innerHTML = `
-        <div class="search-placeholder">
-          <span>⌕</span>
-          <p>Začni psát název článku, projektu nebo téma.</p>
-        </div>
-      `;
-      return;
-    }
-
-    const results = getSearchResults(globalSearchQuery);
-
-    if (!results.length) {
-      container.innerHTML = `
-        <div class="search-placeholder">
-          <span>∅</span>
-          <p>Nic jsme nenašli. Zkus jiné klíčové slovo.</p>
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = results.map(result => `
-      <button class="search-result" type="button"
-        ${result.type === "article"
-          ? `data-open-article="${escapeHTML(result.id)}"`
-          : `data-open-project="${escapeHTML(result.id)}"`}>
-        <span class="search-result-icon">${escapeHTML(result.icon)}</span>
-        <span class="search-result-text">
-          <strong>${escapeHTML(result.title)}</strong>
-          <small>${escapeHTML(result.description)}</small>
-        </span>
-        <span class="search-result-type">
-          ${result.type === "article" ? "Článek" : "Projekt"}
-        </span>
-      </button>
-    `).join("");
-  }
-
-  function openSearch() {
-    const overlay = $("#search-overlay");
-    const input = $("#global-search-input");
-
-    if (!overlay) return;
-
-    overlay.classList.add("is-open", "active");
-    overlay.setAttribute("aria-hidden", "false");
-    document.body.classList.add("overlay-open");
-
-    setTimeout(() => input?.focus(), 50);
-    renderGlobalSearch();
-  }
-
-  function closeSearch() {
-    const overlay = $("#search-overlay");
-    if (!overlay) return;
-
-    overlay.classList.remove("is-open", "active");
-    overlay.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("overlay-open");
-  }
-
-  function initGlobalSearch() {
-    $("#global-search-toggle")?.addEventListener("click", openSearch);
-    $("#global-search-close")?.addEventListener("click", closeSearch);
-
-    $("#global-search-input")?.addEventListener("input", event => {
-      globalSearchQuery = event.target.value;
-      renderGlobalSearch();
-    });
-
-    $("#search-overlay")?.addEventListener("click", event => {
-      if (event.target.id === "search-overlay") closeSearch();
-    });
-  }
-
-  /* =======================================================
-     PALETA PŘÍKAZŮ
-     ======================================================= */
-
-  function openCommandPalette() {
-    const overlay = $("#command-overlay");
-    if (!overlay) return;
-
-    overlay.classList.add("is-open", "active");
-    overlay.setAttribute("aria-hidden", "false");
-    document.body.classList.add("overlay-open");
-
-    const input = $("#command-input");
-    if (input) {
-      input.value = "";
-      setTimeout(() => input.focus(), 50);
-    }
-
-    filterCommands("");
-  }
-
-  function closeCommandPalette() {
-    const overlay = $("#command-overlay");
-    if (!overlay) return;
-
-    overlay.classList.remove("is-open", "active");
-    overlay.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("overlay-open");
-  }
-
-  function filterCommands(query) {
-    const items = $$(".command-item");
-    const normalized = normalize(query);
-
-    items.forEach(item => {
-      const text = normalize(item.textContent);
-      item.hidden = normalized && !text.includes(normalized);
-    });
-  }
-
-  function runCommand(command) {
-    closeCommandPalette();
-
-    const actions = {
-      home: () => scrollToSection("home"),
-      articles: () => scrollToSection("articles"),
-      projects: () => scrollToSection("projects"),
-      tools: () => scrollToSection("tools"),
-      favorites: () => scrollToSection("favorites"),
-      theme: () => {
-        const current = document.documentElement.dataset.theme || DEFAULT_THEME;
-        applyTheme(current === "dark" ? "light" : "dark");
-      }
-    };
-
-    if (actions[command]) actions[command]();
-  }
-
-  function initCommandPalette() {
-    $("#command-input")?.addEventListener("input", event => {
-      filterCommands(event.target.value);
-    });
-
-    $("#command-overlay")?.addEventListener("click", event => {
-      if (event.target.id === "command-overlay") {
-        closeCommandPalette();
-      }
-    });
-  }
-
-  /* =======================================================
-     KLÁVESOVÉ ZKRATKY
-     ======================================================= */
-
-  function initKeyboardShortcuts() {
-    document.addEventListener("keydown", event => {
-      const target = event.target;
-      const typing = target instanceof HTMLElement && (
-        target.isContentEditable ||
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-      );
-
-      if (event.key === "Escape") {
-        closeSearch();
-        closeCommandPalette();
-        closeDialog();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        openCommandPalette();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        openSearch();
-        return;
-      }
-
-      if (!typing && event.key === "/") {
-        event.preventDefault();
-        openSearch();
-      }
-    });
-  }
-
-  /* =======================================================
-     NAVIGACE A AKTIVNÍ SEKCE
-     ======================================================= */
-
-  function initNavigation() {
-    const links = $$('a[href^="#"]');
-
-    links.forEach(link => {
-      link.addEventListener("click", event => {
-        const id = link.getAttribute("href")?.slice(1);
-        if (!id) return;
-
-        const target = document.getElementById(id);
-        if (!target) return;
-
-        event.preventDefault();
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  const artPills = document.getElementById('article-filter-pills');
+  if (artPills) {
+    const items = [{ id: 'all', name: 'Vše' }, ...store.data.categories];
+    artPills.innerHTML = items
+      .map(
+        (c) =>
+          `<button type="button" class="pill-btn ${uiState.articleCategory === c.id ? 'active' : ''}" data-art-cat="${c.id}">${c.name}</button>`
+      )
+      .join('');
+
+    artPills.querySelectorAll('[data-art-cat]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        uiState.articleCategory = btn.dataset.artCat;
+        renderAllContent();
       });
     });
+  }
 
-    const sections = $$("main section[id], section[id]");
-    if (!("IntersectionObserver" in window)) return;
+  const projPills = document.getElementById('project-filter-pills');
+  if (projPills) {
+    const items = [{ id: 'all', name: 'Všechny oblasti' }, ...store.data.categories];
+    projPills.innerHTML = items
+      .map(
+        (c) =>
+          `<button type="button" class="pill-btn ${uiState.projectCategory === c.id ? 'active' : ''}" data-proj-cat="${c.id}">${c.name}</button>`
+      )
+      .join('');
 
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-
-        const id = entry.target.id;
-
-        $$("[data-nav-link]").forEach(link => {
-          link.classList.toggle(
-            "active",
-            link.getAttribute("href") === `#${id}`
-          );
-        });
+    projPills.querySelectorAll('[data-proj-cat]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        uiState.projectCategory = btn.dataset.projCat;
+        renderAllContent();
       });
-    }, {
-      rootMargin: "-35% 0px -55% 0px"
-    });
-
-    sections.forEach(section => observer.observe(section));
-  }
-
-  /* =======================================================
-     PRŮBĚH ČTENÍ A TLAČÍTKO NAHORU
-     ======================================================= */
-
-  function initScrollEffects() {
-    const progress = $("#reading-progress-bar");
-    const backToTop = $("#back-to-top");
-
-    let scheduled = false;
-
-    function update() {
-      scheduled = false;
-
-      const scrollTop = window.scrollY;
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-
-      const percentage = maxScroll > 0
-        ? Math.min(100, Math.max(0, scrollTop / maxScroll * 100))
-        : 0;
-
-      if (progress) {
-        progress.style.width = `${percentage}%`;
-      }
-
-      if (backToTop) {
-        backToTop.classList.toggle("is-visible", scrollTop > 500);
-      }
-    }
-
-    window.addEventListener("scroll", () => {
-      if (scheduled) return;
-      scheduled = true;
-      requestAnimationFrame(update);
-    }, { passive: true });
-
-    update();
-
-    backToTop?.addEventListener("click", () => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
+}
 
-  /* =======================================================
-     HODINY A ROK
-     ======================================================= */
+function renderArticles() {
+  const grid = document.getElementById('articles-grid');
+  if (!grid) return;
 
-  function initClockAndYear() {
-    const clock = $("#live-clock");
+  let list = [...store.data.articles];
 
-    function updateClock() {
-      if (!clock) return;
-
-      clock.textContent = new Intl.DateTimeFormat("cs-CZ", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      }).format(new Date());
-    }
-
-    updateClock();
-    setInterval(updateClock, 1000);
-
-    const year = String(new Date().getFullYear());
-
-    if ($("#current-year")) $("#current-year").textContent = year;
-    if ($("#footer-year")) $("#footer-year").textContent = year;
+  if (uiState.articleCategory !== 'all') {
+    list = list.filter((a) => a.category === uiState.articleCategory);
   }
-
-  /* =======================================================
-     NÁPOVĚDA KLÁVESOVÝCH ZKRATEK
-     ======================================================= */
-
-  function initKeyboardHint() {
-    const hint = $("#keyboard-hint");
-    const close = $("#keyboard-hint-close");
-
-    if (!hint || readStorage(STORAGE.keyboardHint) === "hidden") {
-      if (hint) hint.hidden = true;
-      return;
-    }
-
-    close?.addEventListener("click", () => {
-      hint.hidden = true;
-      writeStorage(STORAGE.keyboardHint, "hidden");
-    });
+  if (uiState.onlyBookmarkedArticles) {
+    list = list.filter((a) => store.isBookmarked(a.id));
   }
-
-  /* =======================================================
-     DELEGOVÁNÍ UDÁLOSTÍ
-     ======================================================= */
-
-  function initDelegatedEvents() {
-    document.addEventListener("click", event => {
-      const target = event.target instanceof Element
-        ? event.target
-        : null;
-
-      if (!target) return;
-
-      const favorite = target.closest("[data-favorite]");
-      if (favorite) {
-        event.preventDefault();
-        toggleFavorite(favorite.dataset.favorite);
-        return;
-      }
-
-      const articleButton = target.closest("[data-open-article]");
-      if (articleButton) {
-        openArticle(articleButton.dataset.openArticle);
-        closeSearch();
-        return;
-      }
-
-      const projectButton = target.closest("[data-open-project]");
-      if (projectButton) {
-        openProject(projectButton.dataset.openProject);
-        closeSearch();
-        return;
-      }
-
-      const articleFilter = target.closest("[data-article-filter]");
-      if (articleFilter) {
-        activeArticleFilter = articleFilter.dataset.articleFilter;
-        renderArticleFilters();
-        renderArticles();
-        return;
-      }
-
-      const projectFilter = target.closest("[data-project-filter]");
-      if (projectFilter) {
-        activeProjectFilter = projectFilter.dataset.projectFilter;
-        renderProjectFilters();
-        renderProjects();
-        return;
-      }
-
-      const categoryLink = target.closest("[data-category-link]");
-      if (categoryLink) {
-        const category = categoryLink.dataset.categoryLink;
-
-        activeArticleFilter = category;
-        activeProjectFilter = category;
-
-        renderArticleFilters();
-        renderProjectFilters();
-        renderArticles();
-        renderProjects();
-
-        scrollToSection("articles");
-        return;
-      }
-
-      const commandItem = target.closest("[data-command]");
-      if (commandItem) {
-        runCommand(commandItem.dataset.command);
-        return;
-      }
-
-      const copyButton = target.closest("[data-copy-code]");
-      if (copyButton) {
-        const code = $(".code-block code", copyButton.closest(".detail-view"));
-        if (code) copyText(code.textContent);
-      }
-    });
-  }
-
-  /* =======================================================
-     VSTUPY VYHLEDÁVÁNÍ
-     ======================================================= */
-
-  function initContentSearch() {
-    $("#article-search")?.addEventListener("input", event => {
-      articleSearchQuery = event.target.value;
-      renderArticles();
-    });
-
-    $("#project-search")?.addEventListener("input", event => {
-      projectSearchQuery = event.target.value;
-      renderProjects();
-    });
-  }
-
-  /* =======================================================
-     DIALOGOVÉ OVLÁDÁNÍ
-     ======================================================= */
-
-  function initDialogs() {
-    $("#dialog-close")?.addEventListener("click", closeDialog);
-
-    const dialog = $("#content-dialog");
-
-    dialog?.addEventListener("click", event => {
-      if (event.target === dialog) {
-        closeDialog();
-      }
-    });
-
-    dialog?.addEventListener("close", () => {
-      document.body.classList.remove("dialog-open");
-      currentDialogItem = null;
-    });
-  }
-
-  /* =======================================================
-     RENDER VŠEHO
-     ======================================================= */
-
-  function renderAll() {
-    renderCategories();
-    renderArticleFilters();
-    renderProjectFilters();
-    renderArticles();
-    renderProjects();
-    renderFavorites();
-  }
-
-  /* =======================================================
-     API PRO ADMIN.JS
-     ======================================================= */
-
-  window.VoltLab = {
-    get articles() {
-      return articles;
-    },
-
-    get projects() {
-      return projects;
-    },
-
-    get favorites() {
-      return [...favorites];
-    },
-
-    get storage() {
-      return { ...STORAGE };
-    },
-
-    notify,
-
-    escapeHTML,
-    categoryName,
-
-    renderArticles,
-    renderProjects,
-    renderFavorites,
-    renderCategories,
-    renderAll,
-
-    openArticle,
-    openProject,
-    openDialog,
-    closeDialog,
-
-    saveArticles(nextArticles) {
-      if (!Array.isArray(nextArticles)) {
-        notify("Neplatný seznam článků.", "error");
-        return false;
-      }
-
-      const success = saveJSON(STORAGE.articles, nextArticles);
-
-      if (success) {
-        articles = nextArticles;
-        renderAll();
-        notify("Články byly aktualizovány.", "success");
-      }
-
-      return success;
-    },
-
-    saveProjects(nextProjects) {
-      if (!Array.isArray(nextProjects)) {
-        notify("Neplatný seznam projektů.", "error");
-        return false;
-      }
-
-      const success = saveJSON(STORAGE.projects, nextProjects);
-
-      if (success) {
-        projects = nextProjects;
-        renderAll();
-        notify("Projekty byly aktualizovány.", "success");
-      }
-
-      return success;
-    },
-
-    resetContent() {
-      const confirmed = window.confirm(
-        "Opravdu chceš obnovit výchozí články a projekty? Vlastní úpravy budou ztraceny."
-      );
-
-      if (!confirmed) return false;
-
-      const articleSuccess = saveJSON(STORAGE.articles, DEFAULT_ARTICLES);
-      const projectSuccess = saveJSON(STORAGE.projects, DEFAULT_PROJECTS);
-
-      if (articleSuccess && projectSuccess) {
-        articles = JSON.parse(JSON.stringify(DEFAULT_ARTICLES));
-        projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
-        renderAll();
-        notify("Výchozí obsah byl obnoven.", "success");
-        return true;
-      }
-
-      return false;
-    }
-  };
-
-  /* =======================================================
-     START APLIKACE
-     ======================================================= */
-
-  function init() {
-    if (!document.body) return;
-
-    renderAll();
-
-    initTheme();
-    initMobileMenu();
-    initGlobalSearch();
-    initCommandPalette();
-    initKeyboardShortcuts();
-    initNavigation();
-    initScrollEffects();
-    initClockAndYear();
-    initKeyboardHint();
-    initDelegatedEvents();
-    initContentSearch();
-    initDialogs();
-    initNotes();
-
-    console.log(
-      `%c⚡ VoltLab V4`,
-      "color:#9b7bff;font-size:18px;font-weight:bold;"
-    );
-
-    console.log(
-      `Načteno ${articles.length} článků a ${projects.length} projektů.`
+  if (uiState.globalQuery) {
+    const q = uiState.globalQuery.toLowerCase();
+    list = list.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.summary.toLowerCase().includes(q) ||
+        (a.tags || []).some((t) => t.toLowerCase().includes(q))
     );
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  list.sort((a, b) => {
+    if (uiState.articleSort === 'oldest') return a.date.localeCompare(b.date);
+    if (uiState.articleSort === 'title') return a.title.localeCompare(b.title, 'cs');
+    return b.date.localeCompare(a.date);
+  });
+
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>Žádné články neodpovídají zvolenému filtru</h3>
+        <p style="margin:0.5rem 0 1rem;">Zkuste zrušit filtr kategorie nebo upravit hledaný výraz.</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="reset-art-filters">Resetovat filtry článků</button>
+      </div>`;
+    document.getElementById('reset-art-filters')?.addEventListener('click', () => {
+      uiState.articleCategory = 'all';
+      uiState.onlyBookmarkedArticles = false;
+      uiState.globalQuery = '';
+      const searchInput = document.getElementById('global-search-input');
+      if (searchInput) searchInput.value = '';
+      renderAllContent();
+    });
+    return;
   }
 
-})();
-```
+  grid.innerHTML = list
+    .map((art) => {
+      const saved = store.isBookmarked(art.id);
+      return `
+      <article class="content-card">
+        <div class="card-top-row">
+          <span class="badge">${getCategoryName(art.category)}</span>
+          <button type="button" class="bookmark-btn ${saved ? 'saved' : ''}" data-bookmark="${art.id}" aria-label="Uložit do oblíbených" title="Uložit do oblíbených">
+            ${saved ? '★' : '☆'}
+          </button>
+        </div>
+        <h3 class="card-title">${art.title}</h3>
+        <p class="card-excerpt">${art.summary}</p>
+        <div class="card-meta">
+          <span>${art.date}</span>
+          <span>•</span>
+          <span>${art.readTime}</span>
+          <span>•</span>
+          <span>${art.author}</span>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-open-article="${art.id}">Otevřít článek</button>
+          <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${(art.tags || []).slice(0, 2).join(' · ')}</span>
+        </div>
+      </article>`;
+    })
+    .join('');
+
+  grid.querySelectorAll('[data-bookmark]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const added = store.toggleBookmark(btn.dataset.bookmark);
+      showToast(added ? 'Přidáno do oblíbených.' : 'Odebráno z oblíbených.');
+    });
+  });
+
+  grid.querySelectorAll('[data-open-article]').forEach((btn) => {
+    btn.addEventListener('click', () => openArticleDetail(btn.dataset.openArticle));
+  });
+}
+
+function renderProjects() {
+  const grid = document.getElementById('projects-grid');
+  if (!grid) return;
+
+  let list = [...store.data.projects];
+
+  if (uiState.projectCategory !== 'all') {
+    list = list.filter((p) => p.category === uiState.projectCategory);
+  }
+  if (uiState.projectDifficulty !== 'all') {
+    list = list.filter((p) => p.difficulty === uiState.projectDifficulty);
+  }
+  if (uiState.globalQuery) {
+    const q = uiState.globalQuery.toLowerCase();
+    list = list.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.summary.toLowerCase().includes(q)
+    );
+  }
+
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>Nenalezeny žádné hardwarové ani softwarové projekty</h3>
+        <p style="margin:0.5rem 0 1rem;">Upravte filtr obtížnosti nebo kategorie.</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="reset-proj-filters">Zobrazit všechny projekty</button>
+      </div>`;
+    document.getElementById('reset-proj-filters')?.addEventListener('click', () => {
+      uiState.projectCategory = 'all';
+      uiState.projectDifficulty = 'all';
+      const diffSelect = document.getElementById('project-difficulty-select');
+      if (diffSelect) diffSelect.value = 'all';
+      renderAllContent();
+    });
+    return;
+  }
+
+  grid.innerHTML = list
+    .map((proj) => {
+      const saved = store.isBookmarked(proj.id);
+      return `
+      <article class="content-card">
+        <div class="card-top-row">
+          <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+            <span class="badge badge-lime">${proj.status}</span>
+            <span class="badge">${getCategoryName(proj.category)}</span>
+            <span class="badge badge-warn">${proj.difficulty}</span>
+          </div>
+          <button type="button" class="bookmark-btn ${saved ? 'saved' : ''}" data-bookmark="${proj.id}" aria-label="Uložit projekt">
+            ${saved ? '★' : '☆'}
+          </button>
+        </div>
+        <h3 class="card-title">${proj.title}</h3>
+        <p class="card-excerpt">${proj.summary}</p>
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>Stav dokončení</span>
+            <span>${proj.progress} %</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${proj.progress}%"></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-primary btn-sm" data-open-project="${proj.id}">Detail projektu</button>
+          <span class="card-meta">${proj.date}</span>
+        </div>
+      </article>`;
+    })
+    .join('');
+
+  grid.querySelectorAll('[data-bookmark]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const added = store.toggleBookmark(btn.dataset.bookmark);
+      showToast(added ? 'Projekt uložen do oblíbených.' : 'Projekt odebrán z oblíbených.');
+    });
+  });
+
+  grid.querySelectorAll('[data-open-project]').forEach((btn) => {
+    btn.addEventListener('click', () => openProjectDetail(btn.dataset.openProject));
+  });
+}
+
+function openArticleDetail(id) {
+  const art = store.data.articles.find((a) => a.id === id);
+  if (!art) return;
+  const container = document.getElementById('detail-modal-body');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <span class="badge" style="margin-bottom:0.6rem;">${getCategoryName(art.category)}</span>
+        <h2 style="font-size:1.65rem;line-height:1.25;">${art.title}</h2>
+        <div class="card-meta" style="margin-top:0.6rem;">
+          <span>Autor: ${art.author}</span>
+          <span>•</span>
+          <span>Publikováno: ${art.date}</span>
+          <span>•</span>
+          <span>Čtení: ${art.readTime}</span>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-icon" data-close-modal="detail-modal" aria-label="Zavřít">✕</button>
+    </div>
+    <div class="article-body">
+      <p style="font-weight:600;color:var(--text-primary);">${art.summary}</p>
+      ${art.content.map((p) => `<p>${p}</p>`).join('')}
+    </div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+        ${(art.tags || []).map((t) => `<span class="badge">#${t}</span>`).join('')}
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-bookmark-btn">
+        ${store.isBookmarked(art.id) ? '★ Uloženo v oblíbených' : '☆ Přidat do oblíbených'}
+      </button>
+    </div>
+  `;
+
+  container.querySelector('[data-close-modal]')?.addEventListener('click', () => closeModal('detail-modal'));
+  document.getElementById('modal-bookmark-btn')?.addEventListener('click', () => {
+    const added = store.toggleBookmark(art.id);
+    showToast(added ? 'Uloženo do oblíbených.' : 'Odebráno z oblíbených.');
+    openArticleDetail(art.id);
+  });
+
+  openModal('detail-modal');
+}
+
+function openProjectDetail(id) {
+  const proj = store.data.projects.find((p) => p.id === id);
+  if (!proj) return;
+  const container = document.getElementById('detail-modal-body');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <span class="badge badge-lime">${proj.status}</span>
+          <span class="badge">${getCategoryName(proj.category)}</span>
+          <span class="badge badge-warn">${proj.difficulty}</span>
+        </div>
+        <h2 style="font-size:1.65rem;line-height:1.25;">${proj.title}</h2>
+      </div>
+      <button type="button" class="btn btn-ghost btn-icon" data-close-modal="detail-modal" aria-label="Zavřít">✕</button>
+    </div>
+    <div class="article-body">
+      <p>${proj.summary}</p>
+      <h3 style="margin:1.25rem 0 0.75rem;font-size:1.1rem;">Technické specifikace</h3>
+      <ul style="padding-left:1.25rem;color:var(--text-secondary);display:grid;gap:0.45rem;margin-bottom:1.5rem;">
+        ${(proj.specs || []).map((s) => `<li>${s}</li>`).join('')}
+      </ul>
+      <div class="progress-wrap" style="margin-bottom:1.5rem;">
+        <div class="progress-label"><span>Fáze vývoje</span><span>${proj.progress} %</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${proj.progress}%"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+      <a href="${proj.repo}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">Repozitář a schémata ↗</a>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-proj-fav">
+        ${store.isBookmarked(proj.id) ? '★ Uloženo' : '☆ Uložit projekt'}
+      </button>
+    </div>
+  `;
+
+  container.querySelector('[data-close-modal]')?.addEventListener('click', () => closeModal('detail-modal'));
+  document.getElementById('modal-proj-fav')?.addEventListener('click', () => {
+    const added = store.toggleBookmark(proj.id);
+    showToast(added ? 'Projekt uložen.' : 'Projekt odebrán.');
+    openProjectDetail(proj.id);
+  });
+
+  openModal('detail-modal');
+}
+
+function renderBookmarksModal() {
+  const listEl = document.getElementById('bookmarks-list');
+  if (!listEl) return;
+
+  const favArticles = store.data.articles.filter((a) => store.isBookmarked(a.id));
+  const favProjects = store.data.projects.filter((p) => store.isBookmarked(p.id));
+
+  if (!favArticles.length && !favProjects.length) {
+    listEl.innerHTML = `<p style="color:var(--text-secondary);">Zatím nemáte uložené žádné oblíbené články ani projekty. Klikněte na ikonu hvězdičky u libovolné karty.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div style="display:grid;gap:0.85rem;">
+      ${favArticles
+        .map(
+          (a) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.9rem;background:var(--bg-elevated);border-radius:var(--radius-sm);">
+          <div>
+            <span class="badge" style="margin-bottom:0.25rem;">Článek</span>
+            <div><strong>${a.title}</strong></div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" data-open-fav-art="${a.id}">Číst</button>
+        </div>`
+        )
+        .join('')}
+      ${favProjects
+        .map(
+          (p) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.9rem;background:var(--bg-elevated);border-radius:var(--radius-sm);">
+          <div>
+            <span class="badge badge-lime" style="margin-bottom:0.25rem;">Projekt</span>
+            <div><strong>${p.title}</strong></div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" data-open-fav-proj="${p.id}">Detail</button>
+        </div>`
+        )
+        .join('')}
+    </div>
+  `;
+
+  listEl.querySelectorAll('[data-open-fav-art]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      closeModal('bookmarks-modal');
+      openArticleDetail(btn.dataset.openFavArt);
+    });
+  });
+
+  listEl.querySelectorAll('[data-open-fav-proj]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      closeModal('bookmarks-modal');
+      openProjectDetail(btn.dataset.openFavProj);
+    });
+  });
+}
+
+function renderAllContent() {
+  renderStats();
+  renderCategories();
+  renderArticles();
+  renderProjects();
+  renderBookmarksModal();
+}
+
+function initOscilloscopeCanvas() {
+  const canvas = document.getElementById('hero-scope-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let phase = 0;
+
+  const draw = () => {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= w; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= h; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#9ef01a';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (let x = 0; x < w; x++) {
+      const t = (x + phase) * 0.045;
+      const pwm = Math.sin(t) > 0.15 ? -34 : 34;
+      const y = h * 0.45 + pwm + Math.sin(t * 7) * 2.5;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x < w; x++) {
+      const t = (x + phase) * 0.045;
+      const y = h * 0.65 + Math.sin(t - 0.8) * 18;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    if (store.prefs.showTelemetryAnim && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      phase += 1.4;
+    }
+    requestAnimationFrame(draw);
+  };
+
+  draw();
+}
+
+async function bootstrap() {
+  await store.init();
+  uiState.articleSort = store.prefs.defaultSort;
+
+  const admin = new AdminController(store, showToast);
+  admin.init();
+
+  store.subscribe(() => renderAllContent());
+  renderAllContent();
+  initEngineeringTools();
+  initOscilloscopeCanvas();
+
+  document.getElementById('theme-toggle-btn')?.addEventListener('click', () => {
+    const next = store.toggleTheme();
+    showToast(next === 'dark' ? 'Aktivován tmavý laboratorní režim.' : 'Aktivován světlý režim.');
+  });
+
+  const mobileBtn = document.getElementById('mobile-menu-btn');
+  const mobileDrawer = document.getElementById('mobile-drawer');
+  mobileBtn?.addEventListener('click', () => {
+    const isOpen = mobileDrawer.classList.toggle('open');
+    mobileBtn.setAttribute('aria-expanded', String(isOpen));
+  });
+  mobileDrawer?.querySelectorAll('a, button').forEach((item) => {
+    item.addEventListener('click', () => {
+      mobileDrawer.classList.remove('open');
+      mobileBtn?.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  const searchInput = document.getElementById('global-search-input');
+  searchInput?.addEventListener('input', (e) => {
+    uiState.globalQuery = e.target.value.trim();
+    renderArticles();
+    renderProjects();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      searchInput?.focus();
+    }
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop.open').forEach((m) => closeModal(m.id));
+    }
+  });
+
+  document.getElementById('article-sort-select')?.addEventListener('change', (e) => {
+    uiState.articleSort = e.target.value;
+    renderArticles();
+  });
+
+  document.getElementById('filter-bookmarks-btn')?.addEventListener('click', (e) => {
+    uiState.onlyBookmarkedArticles = !uiState.onlyBookmarkedArticles;
+    e.currentTarget.classList.toggle('active', uiState.onlyBookmarkedArticles);
+    renderArticles();
+  });
+
+  document.getElementById('project-difficulty-select')?.addEventListener('change', (e) => {
+    uiState.projectDifficulty = e.target.value;
+    renderProjects();
+  });
+
+  document.getElementById('open-bookmarks-btn')?.addEventListener('click', () => {
+    renderBookmarksModal();
+    openModal('bookmarks-modal');
+  });
+
+  document.getElementById('open-settings-btn')?.addEventListener('click', () => {
+    document.getElementById('pref-theme-select').value = store.prefs.theme;
+    document.getElementById('pref-sort-select').value = store.prefs.defaultSort;
+    document.getElementById('pref-anim-check').checked = store.prefs.showTelemetryAnim;
+    openModal('settings-modal');
+  });
+
+  document.getElementById('settings-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const theme = document.getElementById('pref-theme-select').value;
+    const defaultSort = document.getElementById('pref-sort-select').value;
+    const showTelemetryAnim = document.getElementById('pref-anim-check').checked;
+    store.updatePreferences({ theme, defaultSort, showTelemetryAnim });
+    uiState.articleSort = defaultSort;
+    renderArticles();
+    closeModal('settings-modal');
+    showToast('Uživatelské předvolby byly uloženy.');
+  });
+
+  document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+  });
+
+  document.querySelectorAll('.modal-backdrop').forEach((backdrop) => {
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeModal(backdrop.id);
+    });
+  });
+}
+
+bootstrap();
