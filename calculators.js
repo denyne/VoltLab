@@ -1,839 +1,515 @@
 
-/* =========================================================
-   VOLTLAB V4 MAX
-   ENGINEERING CALCULATORS
-   ========================================================= */
-
-"use strict";
-
-window.VOLTLAB = window.VOLTLAB || {};
-
 (() => {
+  "use strict";
+
   const APP = window.VOLTLAB;
+
+  if (!APP) {
+    console.error("VoltLab: Nejprve načti config.js.");
+    return;
+  }
+
+  if (APP.calculators?.initialized) return;
 
   const STORAGE_KEY = APP.storageKeys.calculatorHistory;
 
-  const EPSILON = 1e-12;
+  // --------------------------------------------------
+  // POMOCNÉ FUNKCE
+  // --------------------------------------------------
 
-  /* -------------------------------------------------------
-     CORE HELPERS
-  ------------------------------------------------------- */
+  const number = (value, label = "Hodnota") => {
+    const n = Number(value);
 
-  function number(value, name = "Hodnota") {
-    const result = Number(value);
-
-    if (!Number.isFinite(result)) {
-      throw new Error(`${name} musí být platné číslo.`);
+    if (value === "" || value === null || value === undefined ||
+        !Number.isFinite(n)) {
+      throw new Error(`${label}: zadej platné číslo.`);
     }
 
-    return result;
-  }
+    return n;
+  };
 
-  function positive(value, name = "Hodnota") {
-    const result = number(value, name);
+  const positive = (value, label) => {
+    const n = number(value, label);
 
-    if (result <= 0) {
-      throw new Error(`${name} musí být větší než nula.`);
+    if (n <= 0) {
+      throw new Error(`${label}: hodnota musí být větší než nula.`);
     }
 
-    return result;
-  }
+    return n;
+  };
 
-  function nonNegative(value, name = "Hodnota") {
-    const result = number(value, name);
-
-    if (result < 0) {
-      throw new Error(`${name} nesmí být záporná.`);
+  const optional = (value, fallback) => {
+    if (value === "" || value === null || value === undefined) {
+      return fallback;
     }
+    return number(value);
+  };
 
-    return result;
-  }
+  const format = (value, digits = 5) => {
+    if (!Number.isFinite(value)) return "—";
 
-  function round(value, digits = 6) {
-    if (!Number.isFinite(value)) return value;
-
-    const factor = Math.pow(10, digits);
-
-    return Math.round(value * factor) / factor;
-  }
-
-  function format(value, digits = 6) {
-    return Number(value).toLocaleString("cs-CZ", {
-      maximumFractionDigits: digits
+    return Number(value.toPrecision(digits)).toLocaleString("cs-CZ", {
+      maximumSignificantDigits: digits
     });
-  }
+  };
 
-  function result(value, unit, label, details = {}) {
-    return {
-      value,
-      formatted: `${format(value)} ${unit}`,
-      unit,
-      label,
-      ...details
-    };
-  }
+  const result = (label, value, unit, digits = 5) => ({
+    label,
+    value,
+    unit,
+    formatted: `${format(value, digits)} ${unit}`
+  });
 
-  function saveHistory(calculation, input, output) {
-    const history = APP.storage.get(STORAGE_KEY, []);
-
-    history.unshift({
-      id: APP.utils.id("calc"),
-      calculation,
-      input,
-      output,
-      timestamp: Date.now()
-    });
-
-    APP.storage.set(STORAGE_KEY, history.slice(0, 100));
-
-    APP.events.emit("calculator:completed", {
-      calculation,
-      output
-    });
-  }
-
-  function complete(name, input, output) {
-    saveHistory(name, input, output);
-    return output;
-  }
-
-  /* -------------------------------------------------------
-     OHM'S LAW
-     U = R * I
-     I = U / R
-     R = U / I
-  ------------------------------------------------------- */
-
-  function ohmsLaw(values) {
-    const { voltage, current, resistance } = values;
-
-    const hasU = voltage !== undefined && voltage !== "";
-    const hasI = current !== undefined && current !== "";
-    const hasR = resistance !== undefined && resistance !== "";
-
-    if ([hasU, hasI, hasR].filter(Boolean).length !== 2) {
-      throw new Error("Zadej přesně dvě známé hodnoty.");
+  const validateResult = results => {
+    for (const item of Object.values(results)) {
+      if (!Number.isFinite(item.value)) {
+        throw new Error("Výpočet vytvořil neplatný výsledek.");
+      }
     }
+    return results;
+  };
 
-    let U, I, R;
+  const saveHistory = (id, inputs, results) => {
+    try {
+      const history = APP.storage.get(STORAGE_KEY, []);
 
-    if (hasU && hasI) {
-      U = nonNegative(voltage, "Napětí");
-      I = nonNegative(current, "Proud");
+      history.unshift({
+        id: APP.utils.id(),
+        calculatorId: id,
+        calculation: id,
+        timestamp: new Date().toISOString(),
+        inputs,
+        results
+      });
 
-      if (I <= EPSILON) {
-        throw new Error("Proud musí být větší než nula.");
+      APP.storage.set(STORAGE_KEY, history.slice(0, 100));
+
+      APP.events?.emit("calculator:completed", {
+        calculatorId: id,
+        results
+      });
+    } catch (error) {
+      console.warn("VoltLab: Historii výpočtu se nepodařilo uložit.", error);
+    }
+  };
+
+  const define = (id, name, category, description, formula, calculate) => ({
+    id,
+    name,
+    category,
+    description,
+    formula,
+    calculate
+  });
+
+  // --------------------------------------------------
+  // KALKULAČKY
+  // --------------------------------------------------
+
+  const definitions = [];
+
+  function register(definition) {
+    definitions.push({
+      id: definition.id,
+      name: definition.name,
+      category: definition.category,
+      description: definition.description,
+      formula: definition.formula
+    });
+
+    calculators[definition.id] = values => {
+      if (!values || typeof values !== "object") {
+        throw new Error("Chybí vstupní hodnoty.");
       }
 
-      R = U / I;
-    }
+      const inputs = { ...values };
+      const results = validateResult(definition.calculate(inputs));
 
-    if (hasU && hasR) {
-      U = nonNegative(voltage, "Napětí");
-      R = positive(resistance, "Odpor");
-      I = U / R;
-    }
+      saveHistory(definition.id, inputs, results);
 
-    if (hasI && hasR) {
-      I = nonNegative(current, "Proud");
-      R = positive(resistance, "Odpor");
-      U = I * R;
-    }
-
-    const output = {
-      voltage: result(U, "V", "Napětí"),
-      current: result(I, "A", "Proud"),
-      resistance: result(R, "Ω", "Odpor"),
-      power: result(U * I, "W", "Výkon")
+      return results;
     };
-
-    return complete("ohms-law", values, output);
   }
 
-  /* -------------------------------------------------------
-     ELECTRICAL POWER
-     P = U * I
-  ------------------------------------------------------- */
+  const calculators = {};
 
-  function power(values) {
-    const U = nonNegative(values.voltage, "Napětí");
-    const I = nonNegative(values.current, "Proud");
+  // 1. OHMŮV ZÁKON
 
-    const P = U * I;
+  register(define(
+    "ohms-law",
+    "Ohmův zákon",
+    "Základní elektrotechnika",
+    "Výpočet napětí, proudu a odporu.",
+    "U = R × I",
+    v => {
+      const u = optional(v.voltage, null);
+      const i = optional(v.current, null);
+      const r = optional(v.resistance, null);
 
-    const output = {
-      power: result(P, "W", "Výkon"),
-      powerMilliwatts: result(P * 1000, "mW", "Výkon"),
-      powerKilowatts: result(P / 1000, "kW", "Výkon")
-    };
+      const known = [u, i, r].filter(x => x !== null).length;
 
-    return complete("power", values, output);
-  }
+      if (known !== 2) {
+        throw new Error("Vyplň přesně dvě hodnoty.");
+      }
 
-  /* -------------------------------------------------------
-     LED RESISTOR
-     R = (Us - Uled) / I
-  ------------------------------------------------------- */
+      if ([u, i, r].some(x => x !== null && x <= 0)) {
+        throw new Error("Hodnoty musí být větší než nula.");
+      }
 
-  function ledResistor(values) {
-    const supply = positive(values.supplyVoltage, "Napájecí napětí");
-    const ledVoltage = nonNegative(values.ledVoltage, "Napětí LED");
-    const currentMa = positive(values.currentMa, "Proud LED");
+      let U = u;
+      let I = i;
+      let R = r;
 
-    if (supply <= ledVoltage) {
-      throw new Error("Napájecí napětí musí být větší než napětí LED.");
+      if (U === null) U = I * R;
+      if (I === null) I = U / R;
+      if (R === null) R = U / I;
+
+      return {
+        voltage: result("Napětí", U, "V"),
+        current: result("Proud", I, "A"),
+        resistance: result("Odpor", R, "Ω")
+      };
     }
+  ));
 
-    const current = currentMa / 1000;
-    const resistance = (supply - ledVoltage) / current;
-    const resistorPower = (supply - ledVoltage) * current;
+  // 2. ELEKTRICKÝ VÝKON
 
-    const output = {
-      resistance: result(resistance, "Ω", "Vypočtený odpor"),
-      nearestStandard: result(
-        nearestResistor(resistance),
-        "Ω",
-        "Nejbližší běžná hodnota"
-      ),
-      power: result(resistorPower, "W", "Výkon rezistoru"),
-      recommendedPower: result(
-        resistorPower * 2,
-        "W",
-        "Orientační výkonová rezerva"
-      ),
-      current: result(current, "A", "Proud")
-    };
+  register(define(
+    "power",
+    "Elektrický výkon",
+    "Základní elektrotechnika",
+    "Výpočet výkonu z napětí a proudu.",
+    "P = U × I",
+    v => {
+      const U = positive(v.voltage, "Napětí");
+      const I = positive(v.current, "Proud");
+      const P = U * I;
 
-    return complete("led-resistor", values, output);
-  }
+      return {
+        power: result("Elektrický výkon", P, "W"),
+        voltage: result("Napětí", U, "V"),
+        current: result("Proud", I, "A")
+      };
+    }
+  ));
 
-  /* -------------------------------------------------------
-     STANDARD RESISTOR VALUES
-  ------------------------------------------------------- */
+  // 3. REZISTOR PRO LED
 
-  function nearestResistor(value, series = "E24") {
-    const seriesValues = {
-      E6: [1, 1.5, 2.2, 3.3, 4.7, 6.8],
-      E12: [
+  register(define(
+    "led-resistor",
+    "Rezistor pro LED",
+    "Součástky",
+    "Výpočet odporu a výkonu rezistoru pro LED.",
+    "R = (Uzdroj − ULED) / I",
+    v => {
+      const supply = positive(v.supplyVoltage, "Napájecí napětí");
+      const led = positive(v.ledVoltage, "Úbytek LED");
+      const currentMa = positive(v.currentMa, "Proud LED");
+
+      if (supply <= led) {
+        throw new Error("Napájecí napětí musí být vyšší než napětí LED.");
+      }
+
+      const current = currentMa / 1000;
+      const voltage = supply - led;
+      const resistance = voltage / current;
+      const power = voltage * current;
+
+      const standardValues = [
         1, 1.2, 1.5, 1.8, 2.2, 2.7,
         3.3, 3.9, 4.7, 5.6, 6.8, 8.2
-      ],
-      E24: [
-        1, 1.1, 1.2, 1.3, 1.5, 1.6,
-        1.8, 2.0, 2.2, 2.4, 2.7, 3.0,
-        3.3, 3.6, 3.9, 4.3, 4.7, 5.1,
-        5.6, 6.2, 6.8, 7.5, 8.2, 9.1
-      ]
-    };
+      ];
 
-    const values = seriesValues[series] || seriesValues.E24;
+      const decade = Math.pow(10, Math.floor(Math.log10(resistance)));
+      const standard = standardValues
+        .map(x => x * decade)
+        .find(x => x >= resistance) || 10 * decade;
 
-    const exponent = Math.floor(Math.log10(value));
+      const standardPower = current * current * standard;
 
-    let best = null;
-    let bestDifference = Infinity;
+      return {
+        resistance: result("Potřebný odpor", resistance, "Ω"),
+        standardResistance: result("Doporučený standardní odpor", standard, "Ω"),
+        power: result("Výkon rezistoru", power, "W"),
+        recommendedPower: result("Výkon při standardním odporu", standardPower, "W"),
+        current: result("Proud LED", current * 1000, "mA")
+      };
+    }
+  ));
 
-    for (let power = exponent - 1; power <= exponent + 1; power++) {
-      for (const base of values) {
-        const candidate = base * Math.pow(10, power);
-        const difference = Math.abs(candidate - value);
+  // 4. DĚLIČ NAPĚTÍ
 
-        if (difference < bestDifference) {
-          best = candidate;
-          bestDifference = difference;
-        }
+  register(define(
+    "voltage-divider",
+    "Dělič napětí",
+    "Obvody",
+    "Výpočet výstupního napětí rezistorového děliče.",
+    "Uout = Uin × R2 / (R1 + R2)",
+    v => {
+      const U = positive(v.inputVoltage, "Vstupní napětí");
+      const R1 = positive(v.r1, "Rezistor R1");
+      const R2 = positive(v.r2, "Rezistor R2");
+
+      const current = U / (R1 + R2);
+      const output = current * R2;
+
+      return {
+        outputVoltage: result("Výstupní napětí", output, "V"),
+        current: result("Proud děličem", current, "A"),
+        totalResistance: result("Celkový odpor", R1 + R2, "Ω"),
+        powerR1: result("Výkon R1", current * current * R1, "W"),
+        powerR2: result("Výkon R2", current * current * R2, "W")
+      };
+    }
+  ));
+
+  // 5. RC ČASOVÁ KONSTANTA
+
+  register(define(
+    "rc-time-constant",
+    "RC časová konstanta",
+    "Kondenzátory",
+    "Výpočet časové konstanty a mezní frekvence RC článku.",
+    "τ = R × C",
+    v => {
+      const R = positive(v.resistance, "Odpor");
+      const C = positive(v.capacitance, "Kapacita");
+
+      const tau = R * C;
+      const frequency = 1 / (2 * Math.PI * tau);
+
+      return {
+        timeConstant: result("Časová konstanta", tau, "s"),
+        milliseconds: result("Časová konstanta", tau * 1000, "ms"),
+        cutoffFrequency: result("Mezní frekvence", frequency, "Hz")
+      };
+    }
+  ));
+
+  // 6. ENERGIE KONDENZÁTORU
+
+  register(define(
+    "capacitor-energy",
+    "Energie kondenzátoru",
+    "Kondenzátory",
+    "Výpočet energie a elektrického náboje.",
+    "E = ½ × C × U²",
+    v => {
+      const C = positive(v.capacitance, "Kapacita");
+      const U = positive(v.voltage, "Napětí");
+
+      return {
+        energy: result("Uložená energie", 0.5 * C * U * U, "J"),
+        charge: result("Elektrický náboj", C * U, "C"),
+        voltage: result("Napětí", U, "V")
+      };
+    }
+  ));
+
+  // 7. ENERGIE CÍVKY
+
+  register(define(
+    "inductor-energy",
+    "Energie cívky",
+    "Cívky",
+    "Výpočet energie uložené v magnetickém poli cívky.",
+    "E = ½ × L × I²",
+    v => {
+      const L = positive(v.inductance, "Indukčnost");
+      const I = positive(v.current, "Proud");
+
+      return {
+        energy: result("Uložená energie", 0.5 * L * I * I, "J"),
+        inductance: result("Indukčnost", L, "H"),
+        current: result("Proud", I, "A")
+      };
+    }
+  ));
+
+  // 8. VÝDRŽ BATERIE
+
+  register(define(
+    "battery-runtime",
+    "Výdrž baterie",
+    "Napájení",
+    "Odhad provozní doby baterie podle kapacity a odběru.",
+    "t = Kapacita / Proud",
+    v => {
+      const capacity = positive(v.capacityAh, "Kapacita baterie");
+      const current = positive(v.currentA, "Odběr proudu");
+      const efficiency = optional(v.efficiency, 100);
+
+      if (efficiency <= 0 || efficiency > 100) {
+        throw new Error("Účinnost musí být mezi 0 a 100 %.");
       }
+
+      const hours = capacity / current * efficiency / 100;
+
+      return {
+        runtime: result("Odhadovaná výdrž", hours, "h"),
+        minutes: result("Odhadovaná výdrž", hours * 60, "min"),
+        energy: result("Kapacita při napětí 12 V", capacity * 12, "Wh")
+      };
     }
+  ));
 
-    return best;
-  }
+  // 9. ÚBYTEK NAPĚTÍ NA KABELU
 
-  /* -------------------------------------------------------
-     RESISTOR COLOR CODE
-  ------------------------------------------------------- */
+  register(define(
+    "cable-voltage-drop",
+    "Úbytek napětí na kabelu",
+    "Kabeláž",
+    "Orientační výpočet úbytku napětí v měděném vodiči.",
+    "ΔU = I × ρ × (2 × l) / S",
+    v => {
+      const length = positive(v.length, "Délka kabelu");
+      const current = positive(v.current, "Proud");
+      const area = positive(v.area, "Průřez vodiče");
+      const voltage = positive(v.voltage, "Napájecí napětí");
 
-  const resistorColors = {
-    black:  { digit: 0, multiplier: 1, tolerance: null },
-    brown:  { digit: 1, multiplier: 10, tolerance: 1 },
-    red:    { digit: 2, multiplier: 100, tolerance: 2 },
-    orange: { digit: 3, multiplier: 1000, tolerance: null },
-    yellow: { digit: 4, multiplier: 10000, tolerance: null },
-    green:  { digit: 5, multiplier: 100000, tolerance: 0.5 },
-    blue:   { digit: 6, multiplier: 1000000, tolerance: 0.25 },
-    violet: { digit: 7, multiplier: 10000000, tolerance: 0.1 },
-    grey:   { digit: 8, multiplier: 100000000, tolerance: 0.05 },
-    white:  { digit: 9, multiplier: 1000000000, tolerance: null },
-    gold:   { digit: null, multiplier: 0.1, tolerance: 5 },
-    silver: { digit: null, multiplier: 0.01, tolerance: 10 }
-  };
+      const resistivity = 0.0175;
+      const resistance = resistivity * 2 * length / area;
+      const drop = current * resistance;
+      const percentage = drop / voltage * 100;
+      const outputVoltage = voltage - drop;
 
-  function resistorColorCode(colors) {
-    if (!Array.isArray(colors) || ![4, 5].includes(colors.length)) {
-      throw new Error("Zadej čtyři nebo pět barevných proužků.");
-    }
-
-    const selected = colors.map(color => {
-      const key = String(color).toLowerCase();
-      const data = resistorColors[key];
-
-      if (!data) {
-        throw new Error(`Neznámá barva: ${color}`);
+      if (outputVoltage < 0) {
+        throw new Error("Úbytek napětí je vyšší než napájecí napětí.");
       }
 
-      return { color: key, ...data };
-    });
-
-    const digitCount = colors.length === 4 ? 2 : 3;
-
-    const digits = selected
-      .slice(0, digitCount)
-      .map(item => item.digit);
-
-    if (digits.some(digit => digit === null)) {
-      throw new Error("Barva není platná pro číselný proužek.");
+      return {
+        voltageDrop: result("Úbytek napětí", drop, "V"),
+        percentage: result("Procentuální úbytek", percentage, "%"),
+        resistance: result("Odpor vedení", resistance, "Ω"),
+        outputVoltage: result("Napětí na konci vedení", outputVoltage, "V"),
+        powerLoss: result("Ztrátový výkon", current * current * resistance, "W")
+      };
     }
+  ));
 
-    const multiplier = selected[digitCount].multiplier;
+  // 10. INDUKTIVNÍ REAKTANCE
 
-    const base = Number(digits.join(""));
-    const resistance = base * multiplier;
+  register(define(
+    "inductive-reactance",
+    "Induktivní reaktance",
+    "Střídavé obvody",
+    "Výpočet induktivního odporu cívky při dané frekvenci.",
+    "XL = 2 × π × f × L",
+    v => {
+      const frequency = positive(v.frequency, "Frekvence");
+      const inductance = positive(v.inductance, "Indukčnost");
 
-    const tolerance = selected.length === 4
-      ? selected[3].tolerance
-      : selected[4].tolerance;
+      const XL = 2 * Math.PI * frequency * inductance;
 
-    if (tolerance === null) {
-      throw new Error("Neplatná barva tolerančního proužku.");
+      return {
+        reactance: result("Induktivní reaktance", XL, "Ω"),
+        frequency: result("Frekvence", frequency, "Hz"),
+        inductance: result("Indukčnost", inductance, "H")
+      };
     }
+  ));
 
-    const output = {
-      resistance: result(resistance, "Ω", "Odpor"),
-      tolerance: result(tolerance, "%", "Tolerance"),
-      minimum: result(
-        resistance * (1 - tolerance / 100),
-        "Ω",
-        "Minimální odpor"
-      ),
-      maximum: result(
-        resistance * (1 + tolerance / 100),
-        "Ω",
-        "Maximální odpor"
-      )
-    };
+  // 11. KAPACITNÍ REAKTANCE
 
-    return complete("resistor-color-code", colors, output);
-  }
+  register(define(
+    "capacitive-reactance",
+    "Kapacitní reaktance",
+    "Střídavé obvody",
+    "Výpočet kapacitního odporu kondenzátoru.",
+    "XC = 1 / (2 × π × f × C)",
+    v => {
+      const frequency = positive(v.frequency, "Frekvence");
+      const capacitance = positive(v.capacitance, "Kapacita");
 
-  /* -------------------------------------------------------
-     SERIES RESISTORS
-     R = R1 + R2 + ...
-  ------------------------------------------------------- */
+      const XC = 1 / (2 * Math.PI * frequency * capacitance);
 
-  function seriesResistors(values) {
-    if (!Array.isArray(values) || values.length < 2) {
-      throw new Error("Zadej alespoň dva rezistory.");
+      return {
+        reactance: result("Kapacitní reaktance", XC, "Ω"),
+        frequency: result("Frekvence", frequency, "Hz"),
+        capacitance: result("Kapacita", capacitance, "F")
+      };
     }
-
-    const resistances = values.map(
-      value => positive(value, "Odpor")
-    );
-
-    const total = resistances.reduce(
-      (sum, value) => sum + value,
-      0
-    );
-
-    return complete("series-resistors", values, {
-      resistance: result(total, "Ω", "Celkový odpor")
-    });
-  }
-
-  /* -------------------------------------------------------
-     PARALLEL RESISTORS
-     1/R = 1/R1 + 1/R2 + ...
-  ------------------------------------------------------- */
-
-  function parallelResistors(values) {
-    if (!Array.isArray(values) || values.length < 2) {
-      throw new Error("Zadej alespoň dva rezistory.");
-    }
-
-    const resistances = values.map(
-      value => positive(value, "Odpor")
-    );
-
-    const inverse = resistances.reduce(
-      (sum, value) => sum + 1 / value,
-      0
-    );
-
-    const total = 1 / inverse;
-
-    return complete("parallel-resistors", values, {
-      resistance: result(total, "Ω", "Celkový odpor")
-    });
-  }
-
-  /* -------------------------------------------------------
-     VOLTAGE DIVIDER
-     Vout = Vin * R2 / (R1 + R2)
-  ------------------------------------------------------- */
-
-  function voltageDivider(values) {
-    const vin = nonNegative(values.inputVoltage, "Vstupní napětí");
-    const r1 = positive(values.r1, "Rezistor R1");
-    const r2 = positive(values.r2, "Rezistor R2");
-
-    const outputVoltage = vin * r2 / (r1 + r2);
-    const current = vin / (r1 + r2);
-    const powerR1 = current * current * r1;
-    const powerR2 = current * current * r2;
-
-    const output = {
-      outputVoltage: result(outputVoltage, "V", "Výstupní napětí"),
-      current: result(current, "A", "Proud děličem"),
-      powerR1: result(powerR1, "W", "Výkon R1"),
-      powerR2: result(powerR2, "W", "Výkon R2")
-    };
-
-    return complete("voltage-divider", values, output);
-  }
-
-  /* -------------------------------------------------------
-     RC TIME CONSTANT
-     tau = R * C
-  ------------------------------------------------------- */
-
-  function rcTimeConstant(values) {
-    const resistance = positive(values.resistance, "Odpor");
-    const capacitance = positive(values.capacitance, "Kapacita");
-
-    const tau = resistance * capacitance;
-
-    const output = {
-      timeConstant: result(tau, "s", "Časová konstanta"),
-      milliseconds: result(tau * 1000, "ms", "Časová konstanta"),
-      fiveTau: result(tau * 5, "s", "Přibližné ustálení (5τ)"),
-      frequency: result(
-        1 / (2 * Math.PI * tau),
-        "Hz",
-        "Mezní frekvence RC článku"
-      )
-    };
-
-    return complete("rc-time-constant", values, output);
-  }
-
-  /* -------------------------------------------------------
-     CAPACITOR ENERGY
-     E = 1/2 * C * U²
-  ------------------------------------------------------- */
-
-  function capacitorEnergy(values) {
-    const capacitance = positive(values.capacitance, "Kapacita");
-    const voltage = nonNegative(values.voltage, "Napětí");
-
-    const energy = 0.5 * capacitance * voltage * voltage;
-
-    return complete("capacitor-energy", values, {
-      energy: result(energy, "J", "Energie"),
-      millijoules: result(energy * 1000, "mJ", "Energie")
-    });
-  }
-
-  /* -------------------------------------------------------
-     INDUCTOR ENERGY
-     E = 1/2 * L * I²
-  ------------------------------------------------------- */
-
-  function inductorEnergy(values) {
-    const inductance = positive(values.inductance, "Indukčnost");
-    const current = nonNegative(values.current, "Proud");
-
-    const energy = 0.5 * inductance * current * current;
-
-    return complete("inductor-energy", values, {
-      energy: result(energy, "J", "Energie"),
-      millijoules: result(energy * 1000, "mJ", "Energie")
-    });
-  }
-
-  /* -------------------------------------------------------
-     BATTERY RUNTIME
-     hours = capacity(Ah) / current(A)
-  ------------------------------------------------------- */
-
-  function batteryRuntime(values) {
-    const capacity = positive(values.capacityAh, "Kapacita baterie");
-    const current = positive(values.currentA, "Odebíraný proud");
-
-    const efficiency = values.efficiency === undefined
-      ? 100
-      : number(values.efficiency, "Účinnost");
-
-    if (efficiency <= 0 || efficiency > 100) {
-      throw new Error("Účinnost musí být v rozsahu 0 až 100 %.");
-    }
-
-    const runtime = capacity / current * efficiency / 100;
-
-    return complete("battery-runtime", values, {
-      hours: result(runtime, "h", "Teoretická výdrž"),
-      minutes: result(runtime * 60, "min", "Výdrž v minutách"),
-      days: result(runtime / 24, "d", "Výdrž ve dnech")
-    });
-  }
-
-  /* -------------------------------------------------------
-     CABLE VOLTAGE DROP
-     ΔU = 2 * L * I * rho / A
-     For copper at 20 °C.
-  ------------------------------------------------------- */
-
-  function cableVoltageDrop(values) {
-    const length = positive(values.length, "Délka kabelu");
-    const current = positive(values.current, "Proud");
-    const area = positive(values.area, "Průřez vodiče");
-
-    const voltage = positive(values.voltage, "Napětí");
-
-    // Copper resistivity in Ω·mm²/m
-    const rho = 0.0175;
-
-    const resistance = 2 * length * rho / area;
-    const drop = current * resistance;
-    const percentage = drop / voltage * 100;
-
-    return complete("cable-voltage-drop", values, {
-      resistance: result(resistance, "Ω", "Odpor vedení"),
-      voltageDrop: result(drop, "V", "Úbytek napětí"),
-      percentage: result(percentage, "%", "Procentuální úbytek"),
-      outputVoltage: result(
-        voltage - drop,
-        "V",
-        "Napětí na konci vedení"
-      )
-    });
-  }
-
-  /* -------------------------------------------------------
-     INDUCTIVE REACTANCE
-     XL = 2 * pi * f * L
-  ------------------------------------------------------- */
-
-  function inductiveReactance(values) {
-    const frequency = positive(values.frequency, "Frekvence");
-    const inductance = positive(values.inductance, "Indukčnost");
-
-    const reactance = 2 * Math.PI * frequency * inductance;
-
-    return complete("inductive-reactance", values, {
-      reactance: result(reactance, "Ω", "Induktivní reaktance")
-    });
-  }
-
-  /* -------------------------------------------------------
-     CAPACITIVE REACTANCE
-     XC = 1 / (2 * pi * f * C)
-  ------------------------------------------------------- */
-
-  function capacitiveReactance(values) {
-    const frequency = positive(values.frequency, "Frekvence");
-    const capacitance = positive(values.capacitance, "Kapacita");
-
-    const reactance =
-      1 / (2 * Math.PI * frequency * capacitance);
-
-    return complete("capacitive-reactance", values, {
-      reactance: result(reactance, "Ω", "Kapacitní reaktance")
-    });
-  }
-
-  /* -------------------------------------------------------
-     UNIT CONVERTER
-  ------------------------------------------------------- */
-
-  const unitFactors = {
-    voltage: {
-      V: 1,
-      mV: 0.001,
-      kV: 1000
-    },
-
-    current: {
-      A: 1,
-      mA: 0.001,
-      uA: 0.000001
-    },
-
-    resistance: {
-      ohm: 1,
-      kohm: 1000,
-      Mohm: 1000000
-    },
-
-    capacitance: {
-      F: 1,
-      mF: 0.001,
-      uF: 0.000001,
-      nF: 0.000000001,
-      pF: 0.000000000001
-    },
-
-    power: {
-      W: 1,
-      mW: 0.001,
-      kW: 1000
-    },
-
-    frequency: {
-      Hz: 1,
-      kHz: 1000,
-      MHz: 1000000,
-      GHz: 1000000000
-    },
-
-    energy: {
-      J: 1,
-      mJ: 0.001,
-      uJ: 0.000001,
-      Wh: 3600,
-      kWh: 3600000
-    },
-
-    inductance: {
-      H: 1,
-      mH: 0.001,
-      uH: 0.000001,
-      nH: 0.000000001
-    }
-  };
-
-  function convertUnit(values) {
-    const amount = number(values.value, "Hodnota");
-    const type = values.type;
-
-    const units = unitFactors[type];
-
-    if (!units) {
-      throw new Error("Neznámý typ jednotky.");
-    }
-
-    const from = units[values.from];
-    const to = units[values.to];
-
-    if (!from || !to) {
-      throw new Error("Neplatná jednotka převodu.");
-    }
-
-    const converted = amount * from / to;
-
-    return complete("unit-converter", values, {
-      converted: result(converted, values.to, "Výsledek"),
-      original: result(amount, values.from, "Původní hodnota")
-    });
-  }
-
-  /* -------------------------------------------------------
-     CALCULATOR HISTORY
-  ------------------------------------------------------- */
-
-  function getHistory(limit = 50) {
-    return APP.storage
-      .get(STORAGE_KEY, [])
-      .slice(0, Math.max(0, limit));
-  }
-
-  function clearHistory() {
-    APP.storage.set(STORAGE_KEY, []);
-
-    APP.events.emit("calculator:history-cleared");
-
-    return true;
-  }
-
-  function removeHistoryItem(id) {
-    const history = APP.storage.get(STORAGE_KEY, []);
-
-    const filtered = history.filter(item => item.id !== id);
-
-    APP.storage.set(STORAGE_KEY, filtered);
-
-    return filtered.length !== history.length;
-  }
-
-  /* -------------------------------------------------------
-     CALCULATOR DEFINITIONS
-  ------------------------------------------------------- */
-
-  const definitions = [
-    {
-      id: "ohms-law",
-      name: "Ohmův zákon",
-      category: "Základy",
-      description: "Výpočet napětí, proudu a odporu.",
-      formula: "U = R × I",
-      fields: ["voltage", "current", "resistance"]
-    },
-    {
-      id: "power",
-      name: "Elektrický výkon",
-      category: "Základy",
-      description: "Výpočet elektrického výkonu.",
-      formula: "P = U × I",
-      fields: ["voltage", "current"]
-    },
-    {
-      id: "led-resistor",
-      name: "LED rezistor",
-      category: "Součástky",
-      description: "Výpočet odporu pro LED.",
-      formula: "R = (U - ULED) / I",
-      fields: ["supplyVoltage", "ledVoltage", "currentMa"]
-    },
-    {
-      id: "resistor-color-code",
-      name: "Barevný kód rezistoru",
-      category: "Součástky",
-      description: "Převod barevných proužků na hodnotu odporu.",
-      formula: "R = číslice × násobitel",
-      fields: ["colors"]
-    },
-    {
-      id: "series-resistors",
-      name: "Sériové rezistory",
-      category: "Obvody",
-      description: "Výpočet celkového odporu v sérii.",
-      formula: "R = R1 + R2 + ...",
-      fields: ["resistances"]
-    },
-    {
-      id: "parallel-resistors",
-      name: "Paralelní rezistory",
-      category: "Obvody",
-      description: "Výpočet celkového odporu paralelně.",
-      formula: "1/R = 1/R1 + 1/R2 + ...",
-      fields: ["resistances"]
-    },
-    {
-      id: "voltage-divider",
-      name: "Dělič napětí",
-      category: "Obvody",
-      description: "Výpočet výstupního napětí.",
-      formula: "Uout = Uin × R2 / (R1 + R2)",
-      fields: ["inputVoltage", "r1", "r2"]
-    },
-    {
-      id: "rc-time-constant",
-      name: "RC časová konstanta",
-      category: "Obvody",
-      description: "Výpočet časové konstanty RC článku.",
-      formula: "τ = R × C",
-      fields: ["resistance", "capacitance"]
-    },
-    {
-      id: "capacitor-energy",
-      name: "Energie kondenzátoru",
-      category: "Součástky",
-      description: "Výpočet energie uložené v kondenzátoru.",
-      formula: "E = ½ × C × U²",
-      fields: ["capacitance", "voltage"]
-    },
-    {
-      id: "inductor-energy",
-      name: "Energie cívky",
-      category: "Součástky",
-      description: "Výpočet energie magnetického pole.",
-      formula: "E = ½ × L × I²",
-      fields: ["inductance", "current"]
-    },
-    {
-      id: "battery-runtime",
-      name: "Výdrž baterie",
-      category: "Napájení",
-      description: "Orientační výpočet doby provozu.",
-      formula: "t = Ah / A",
-      fields: ["capacityAh", "currentA", "efficiency"]
-    },
-    {
-      id: "cable-voltage-drop",
-      name: "Úbytek napětí kabelu",
-      category: "Napájení",
-      description: "Výpočet úbytku na měděném dvouvodičovém vedení.",
-      formula: "ΔU = I × R vedení",
-      fields: ["length", "current", "area", "voltage"]
-    },
-    {
-      id: "inductive-reactance",
-      name: "Induktivní reaktance",
-      category: "AC obvody",
-      description: "Výpočet reaktance cívky.",
-      formula: "XL = 2πfL",
-      fields: ["frequency", "inductance"]
-    },
-    {
-      id: "capacitive-reactance",
-      name: "Kapacitní reaktance",
-      category: "AC obvody",
-      description: "Výpočet reaktance kondenzátoru.",
-      formula: "XC = 1 / (2πfC)",
-      fields: ["frequency", "capacitance"]
-    },
-    {
-      id: "unit-converter",
-      name: "Převod jednotek",
-      category: "Nástroje",
-      description: "Převody elektrických jednotek.",
-      formula: "Nová hodnota = původní × poměr jednotek",
-      fields: ["value", "from", "to"]
-    }
-  ];
-
-  /* -------------------------------------------------------
-     PUBLIC API
-  ------------------------------------------------------- */
+  ));
+
+  // --------------------------------------------------
+  // VEŘEJNÉ API
+  // --------------------------------------------------
 
   APP.calculators = {
+    initialized: true,
+
     definitions,
 
-    ohmsLaw,
-    power,
-    ledResistor,
-    nearestResistor,
-    resistorColorCode,
-    seriesResistors,
-    parallelResistors,
-    voltageDivider,
-    rcTimeConstant,
-    capacitorEnergy,
-    inductorEnergy,
-    batteryRuntime,
-    cableVoltageDrop,
-    inductiveReactance,
-    capacitiveReactance,
-    convertUnit,
+    search(query = "") {
+      const q = String(query).trim().toLocaleLowerCase("cs-CZ");
 
-    getHistory,
-    clearHistory,
-    removeHistoryItem,
+      if (!q) return [...definitions];
+
+      return definitions.filter(item =>
+        [
+          item.id,
+          item.name,
+          item.category,
+          item.description,
+          item.formula
+        ].join(" ").toLocaleLowerCase("cs-CZ").includes(q)
+      );
+    },
 
     getById(id) {
       return definitions.find(item => item.id === id) || null;
     },
 
-    search(query = "") {
-      const q = String(query).toLocaleLowerCase("cs");
+    calculate(id, values) {
+      const calculator = calculators[id];
 
-      return definitions.filter(item =>
-        `${item.name} ${item.description} ${item.category} ${item.formula}`
-          .toLocaleLowerCase("cs")
-          .includes(q)
-      );
+      if (!calculator) {
+        throw new Error("Neznámá kalkulačka.");
+      }
+
+      return calculator(values);
+    },
+
+    getHistory(limit = 100) {
+      const history = APP.storage.get(STORAGE_KEY, []);
+
+      return Array.isArray(history)
+        ? history.slice(0, Math.max(0, limit))
+        : [];
+    },
+
+    clearHistory() {
+      APP.storage.set(STORAGE_KEY, []);
+      APP.events?.emit("calculator:history-cleared");
+    },
+
+    removeHistoryItem(id) {
+      const history = this.getHistory();
+      const updated = history.filter(item => item.id !== id);
+
+      APP.storage.set(STORAGE_KEY, updated);
+      return updated.length !== history.length;
+    },
+
+    getStats() {
+      const history = this.getHistory();
+
+      return {
+        total: history.length,
+        available: definitions.length,
+        mostUsed: Object.entries(
+          history.reduce((counts, item) => {
+            counts[item.calculatorId] =
+              (counts[item.calculatorId] || 0) + 1;
+            return counts;
+          }, {})
+        ).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+      };
     }
   };
 
-  console.info(
-    `[VoltLab] Calculators loaded: ${definitions.length}`
-  );
+  // Zpřístupnění jednotlivých kalkulaček pro app.js.
+  Object.assign(APP.calculators, calculators);
 
+  console.log("VoltLab: Kalkulačky V4 MAX připraveny.");
 })();
