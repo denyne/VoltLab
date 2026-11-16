@@ -797,3 +797,464 @@ button { color: inherit; }
     width: 100%;
   }
 }
+
+/* =========================================
+   VOLTLAB V3.1 — FINAL DESIGN IMPROVEMENTS
+   ========================================= */
+
+/* CALCULATOR SUITE */
+
+.calculator-intro {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+  padding: 17px 20px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--accent) 8%, var(--surface)),
+    var(--surface)
+  );
+}
+
+.calculator-intro-icon {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface-3));
+  color: var(--accent);
+  font-size: 27px;
+}
+
+.calculator-intro > div:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.calculator-intro strong {
+  font-size: 13px;
+}
+
+.calculator-intro span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.calculator-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--accent);
+  font: 9px "DM Mono", monospace;
+  letter-spacing: .12em;
+}
+
+.calculator-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: calculator-pulse 1.8s infinite;
+}
+
+@keyframes calculator-pulse {
+  50% { opacity: .35; }
+}
+
+.calculator-category-label {
+  margin: 34px 0 15px;
+  color: var(--muted-2);
+  font: 9px "DM Mono", monospace;
+  letter-spacing: .16em;
+}
+
+.calculator-card {
+  min-width: 0;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+
+.calculator-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.calculator-fields textarea {
+  width: 100%;
+  min-height: 85px;
+  padding: 11px;
+  resize: vertical;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  outline: none;
+  background: var(--bg-soft);
+  color: var(--text);
+  font: 11px/1.7 "Manrope", sans-serif;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.calculator-fields textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.calculator-fields textarea::placeholder {
+  color: var(--muted-2);
+}
+
+.calculator-result {
+  overflow-wrap: anywhere;
+  transition: border-color .2s, background .2s;
+}
+
+.calculator-result.has-result {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-soft));
+}
+
+.calculator-result.has-error {
+  border-color: rgba(255, 105, 105, .4);
+  color: #ff9292;
+}
+
+.calculator-result strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.calculator-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 17px 19px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.calculator-footer-icon {
+  color: var(--accent);
+  font-size: 17px;
+}
+
+.calculator-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+/* ABOUT — VOLTLAB LIGHTNING IDENTITY */
+
+.about-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.about-inner {
+  display: grid;
+  grid-template-columns: .85fr 1.15fr;
+  align-items: center;
+  gap: 75px;
+  max-width: 1000px;
+}
+
+.about-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 310px;
+  isolation: isolate;
+}
+
+.about-orbit {
+  position: absolute;
+  width: 255px;
+  height: 255px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 50%;
+  animation: about-rotate 24s linear infinite;
+}
+
+.about-orbit::before {
+  content: "";
+  position: absolute;
+  top: 35px;
+  right: 30px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--accent);
+}
+
+.about-orbit-two {
+  width: 205px;
+  height: 205px;
+  border-color: color-mix(in srgb, var(--accent-2) 25%, transparent);
+  animation-direction: reverse;
+  animation-duration: 30s;
+}
+
+.about-emblem {
+  display: grid;
+  place-items: center;
+  width: 145px;
+  height: 145px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 34px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 17%, var(--surface)),
+    var(--surface)
+  );
+  color: var(--accent);
+  box-shadow:
+    0 0 70px color-mix(in srgb, var(--accent) 13%, transparent),
+    inset 0 0 30px color-mix(in srgb, var(--accent) 8%, transparent);
+  animation: about-float 5s ease-in-out infinite;
+}
+
+.about-emblem svg {
+  width: 82px;
+  height: 110px;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 35%, transparent));
+}
+
+.about-coordinate {
+  position: absolute;
+  bottom: 4px;
+  color: var(--muted-2);
+  font: 8px "DM Mono", monospace;
+  letter-spacing: .12em;
+}
+
+.about-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 12px var(--accent-2);
+}
+
+.about-dot-one {
+  top: 35px;
+  left: 20px;
+}
+
+.about-dot-two {
+  right: 10px;
+  bottom: 55px;
+}
+
+.about-copy h2 {
+  margin: 13px 0 17px;
+}
+
+.about-copy > p {
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.about-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.about-value {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.about-value strong {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.about-value span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.about-copy .text-link {
+  margin-top: 23px;
+}
+
+@keyframes about-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes about-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* GENERAL POLISH */
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+::placeholder {
+  opacity: .8;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+.content-dialog,
+.admin-modal {
+  overscroll-behavior: contain;
+}
+
+.admin-modal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+  .about-inner {
+    gap: 35px;
+  }
+
+  .about-visual {
+    min-height: 270px;
+  }
+
+  .about-orbit {
+    width: 225px;
+    height: 225px;
+  }
+
+  .about-orbit-two {
+    width: 180px;
+    height: 180px;
+  }
+
+  .about-emblem {
+    width: 125px;
+    height: 125px;
+  }
+}
+
+@media (max-width: 700px) {
+  .calculator-intro {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+
+  .calculator-live {
+    width: 100%;
+    margin-left: 60px;
+  }
+
+  .calculator-category-label {
+    margin-top: 27px;
+  }
+
+  .calculator-card {
+    padding: 19px;
+  }
+
+  .calculator-description {
+    min-height: 0;
+  }
+
+  .about-inner {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .about-visual {
+    min-height: 250px;
+  }
+
+  .about-copy {
+    text-align: left;
+  }
+
+  .about-values {
+    gap: 7px;
+  }
+
+  .about-value {
+    padding: 10px 8px;
+  }
+
+  .admin-modal {
+    padding: 19px;
+  }
+}
+
+@media (max-width: 420px) {
+  .calculator-intro span {
+    font-size: 9px;
+  }
+
+  .calculator-live {
+    margin-left: 0;
+  }
+
+  .calculator-top {
+    gap: 10px;
+  }
+
+  .tool-tag {
+    font-size: 8px;
+  }
+
+  .about-values {
+    grid-template-columns: 1fr;
+  }
+
+  .about-value {
+    padding: 12px;
+  }
+
+  .calculator-footer {
+    padding: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-orbit,
+  .about-emblem,
+  .calculator-live i {
+    animation: none !important;
+  }
+}
